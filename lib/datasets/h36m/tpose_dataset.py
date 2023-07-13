@@ -43,7 +43,7 @@ class Dataset(data.Dataset):
         else:
             test_view = cfg.test_view
         
-        breakpoint()
+        # breakpoint()
 
         if split == 'train' or split == 'prune':
             self.view = cfg.training_view
@@ -393,7 +393,7 @@ class Dataset(data.Dataset):
 
         thresh = None
 
-        breakpoint()
+        # breakpoint()
         if cfg.train_with_coord and self.split == 'train':
             coord_path = os.path.join(
                 self.data_root,

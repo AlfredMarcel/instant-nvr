@@ -1,0 +1,49 @@
+一些实现上的点：
+
+1. 人体各部件手动定义了bounding box
+2. 视角编码是频率编码，没用球谐函数
+3. 自己实现了MHE编码
+4. 网络参数初始化 nn.init.kaiming_normal_()
+
+数据集处理：
+
+1. init： load_smpl ,根据蒙皮权重分5个part
+2. get_item: 
+
+
+网络传播过程：
+
+
+========================================================================================
+
+sida组的框架分层：
+
+network = make_network() 网络结构
+
+trainer = make_trainer(cfg, network) -> NetworkWrapper 包装了 Renderer, loss 
+
+optimizer = make_optimizer(cfg, network) 优化器
+
+scheduler = make_lr_scheduler(cfg, optimizer) 
+
+recorder = make_recorder(cfg)
+
+evaluator = make_evaluator(cfg)  Evaluator()  评估指标
+
+begin_epoch = load_model(network,
+                        optimizer,
+                        scheduler,
+                        recorder,
+                        cfg.trained_model_dir,
+                        resume=cfg.resume)
+
+#模型参数初始化#
+
+set_lr_scheduler(cfg, scheduler)
+
+train, val, test 的 make_data_loader()
+
+for epoch in range(begin_epoch, cfg.train.epoch):
+
+    trainer.train(begin_epoch, train_loader, optimizer, recorder)  # might exists a trainer change
+    scheduler.step()

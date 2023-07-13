@@ -99,7 +99,7 @@ def train(cfg, network):
                              cfg.trained_model_dir,
                              resume=cfg.resume)
 
-    breakpoint()
+    # breakpoint()
     if cfg.pretrained_model != "none" and begin_epoch == 0:
         load_network(network, cfg.pretrained_model)
         nn.init.kaiming_normal_(network.tpose_human.embedder.data)
