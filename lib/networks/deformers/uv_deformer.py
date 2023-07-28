@@ -12,13 +12,18 @@ class Deformer(nn.Module):
     def __init__(self, deformer_cfg) -> None:
         super().__init__()
         self.embedder = make_embedder(deformer_cfg)
+        print(deformer_cfg)
         self.mlp = nn.Sequential(
-            nn.Linear(self.embedder.out_dim, 32),
-            nn.Softplus(),
-            nn.Linear(32, 32),
-            nn.Softplus(),
-            nn.Linear(32, 3),
+            nn.Linear(self.embedder.out_dim, deformer_cfg.hidden_dims),
+            nn.Softplus()
         )
+        for i in range(deformer_cfg.hidden_layers):
+            self.mlp.add_module("hidden"+str(i), nn.Linear(deformer_cfg.hidden_dims, deformer_cfg.hidden_dims))
+            self.mlp.add_module("fn"+str(i), nn.Softplus())
+
+        self.mlp.add_module("out", nn.Linear(deformer_cfg.hidden_dims, 3))
+
+        print(self.mlp)
 
     def forward(self, xyz: torch.Tensor, batch, flag: torch.Tensor = None):
         if flag is not None:

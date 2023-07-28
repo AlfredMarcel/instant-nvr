@@ -55,7 +55,7 @@ ratio: 0.5
 # partnet config
 tpose_deformer:
   module: "lib.networks.deformers.uv_deformer"
-  hidden_dims: 32
+  hidden_dims: 64
   hidden_layers: 2
   embedder:
     module: "lib.networks.embedders.part_base_embedder"

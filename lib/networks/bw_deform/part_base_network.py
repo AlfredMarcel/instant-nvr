@@ -34,6 +34,7 @@ class Network(nn.Module):
         self.partname = partname
 
         self.embedder: HashEmbedder = make_part_embedder(cfg, partname, pid)
+        # self.embedder_static: HashEmbedder = make_part_embedder(cfg, partname, pid)
         self.embedder_dir: FreqEmbedder = make_viewdir_embedder(cfg)
         self.occ = MLP(self.embedder.out_dim, 1 + cfg.geo_feature_dim, **cfg.network.occ)
         indim_rgb = self.embedder.out_dim + self.embedder_dir.out_dim + cfg.geo_feature_dim + cfg.latent_code_dim
@@ -41,12 +42,15 @@ class Network(nn.Module):
         nn.init.kaiming_normal_(self.rgb_latent)
         self.rgb = make_part_color_network(cfg, partname, indim=indim_rgb)
 
-    def forward(self, tpts: torch.Tensor, viewdir: torch.Tensor, dists: torch.Tensor, batch):
+    def forward(self, tpts: torch.Tensor, spts: torch.Tensor, viewdir: torch.Tensor, dists: torch.Tensor, batch):
         # tpts: N, 3
         # viewdir: N, 3
         N, D = tpts.shape
         C, L = self.rgb_latent.shape
         embedded = self.embedder(tpts, batch)  # embedding
+        embedded_static = self.embedder(spts, batch)  # embedding rigid
+        # embedded = torch.concat([embedded, embedded_static], dim=0)
+        embedded.add_(embedded_static).div_(2)
         hidden: torch.Tensor = self.occ(embedded)  # networking
         occ = 1 - torch.exp(-self.occ.actvn(hidden[..., :1]))  # activation
         feature = hidden[..., 1:]

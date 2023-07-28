@@ -113,11 +113,12 @@ class Network(GradModule):
         tpose = init_bigpose + resd
 
         tpose = tpose.reshape(B, N, NUM_PARTS, 3)
+        bigpose = init_bigpose.reshape(B, N, NUM_PARTS, 3)
         pflag = pflag.reshape(B, N, NUM_PARTS)
         resd = resd.reshape(B, N, NUM_PARTS, 3)
 
         # save_point_cloud(tpose.squeeze()[:64], "debug/tpose_pts_{}.ply".format(get_time()))
-        return tpose, tpose_dirs, resd, pflag, init_bigpose, pnorm
+        return tpose, bigpose, tpose_dirs, resd, pflag, init_bigpose, pnorm
 
     def resd(self, tpts: torch.Tensor, batch):
         B, N, D = tpts.shape
@@ -140,8 +141,9 @@ class Network(GradModule):
             pose_dirs = pose_dirs[0].gather(dim=0, index=pind)[None]
 
         # transform points from the pose space to the tpose space
-        tpose, tpose_dirs, resd, tpose_part_flag, tpts, part_dist = self.pose_points_to_tpose_points(pose_pts, pose_dirs, batch)
+        tpose, bigpose, tpose_dirs, resd, tpose_part_flag, tpts, part_dist = self.pose_points_to_tpose_points(pose_pts, pose_dirs, batch)
         tpose = tpose[0]
+        bigpose = bigpose[0]
         tpose_part_flag = tpose_part_flag[0]
         if cfg.tpose_viewdir:
             viewdir = tpose_dirs[0]
@@ -149,7 +151,7 @@ class Network(GradModule):
             viewdir = viewdir[0]
 
         # part network query with hashtable embedding
-        ret = self.tpose_human(tpose, viewdir, tpose_part_flag, dists, part_dist, batch)
+        ret = self.tpose_human(tpose, bigpose, viewdir, tpose_part_flag, dists, part_dist, batch)
 
         B, N = wpts.shape[:2]
         assert B == 1
@@ -191,7 +193,7 @@ class TPoseHuman(GradModule):
             partnet.save_part()
         self.body_network.save_part()
 
-    def forward(self, tpts: torch.Tensor, viewdir: torch.Tensor, tflag: torch.Tensor, dists: torch.Tensor, part_dist, batch):
+    def forward(self, tpts: torch.Tensor, bigpts: torch.Tensor, viewdir: torch.Tensor, tflag: torch.Tensor, dists: torch.Tensor, part_dist, batch):
         """
         """
         assert not cfg.part_deform
@@ -210,20 +212,24 @@ class TPoseHuman(GradModule):
 
         # applying mask
         xyz_parts = []
+        static_parts = []
         viewdir_parts = []
         for part_idx in range(NUM_PARTS):
             xyz_part = tpts[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))  # faster backward than indexing, using resd so need backward
+            static_part = bigpts[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))  # faster backward than indexing, using resd so need backward
             viewdir_part = viewdir[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))
             xyz_parts.append(xyz_part)
+            static_parts.append(static_part)
             viewdir_parts.append(viewdir_part)
 
         # forward network
         ret_parts = []
         for part_idx in range(NUM_PARTS):
             xyz_part = xyz_parts[part_idx]
+            static_part = static_parts[part_idx]
             viewdir_part = viewdir_parts[part_idx]
             part_network = self.part_networks[part_idx]
-            ret_part = part_network(xyz_part, viewdir_part, dists, batch)
+            ret_part = part_network(xyz_part, static_part, viewdir_part, dists, batch)
             ret_parts.append(ret_part)
 
         # fill in output

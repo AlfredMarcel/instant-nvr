@@ -56,7 +56,7 @@ ratio: 0.5
 tpose_deformer:
   module: "lib.networks.deformers.uv_deformer"
   hidden_dims: 32
-  hidden_layers: 2
+  hidden_layers: 3
   embedder:
     module: "lib.networks.embedders.part_base_embedder"
     kwargs:
