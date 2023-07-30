@@ -212,24 +212,25 @@ class TPoseHuman(GradModule):
 
         # applying mask
         xyz_parts = []
-        static_parts = []
+        rigid_parts = []
         viewdir_parts = []
         for part_idx in range(NUM_PARTS):
             xyz_part = tpts[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))  # faster backward than indexing, using resd so need backward
-            static_part = bigpts[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))  # faster backward than indexing, using resd so need backward
+            rigid_part = bigpts[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))  # faster backward than indexing, using resd so need backward
             viewdir_part = viewdir[:, part_idx].gather(dim=0, index=inds[part_idx][:, None].expand(-1, 3))
             xyz_parts.append(xyz_part)
-            static_parts.append(static_part)
+            rigid_parts.append(rigid_part)
             viewdir_parts.append(viewdir_part)
 
         # forward network
         ret_parts = []
         for part_idx in range(NUM_PARTS):
             xyz_part = xyz_parts[part_idx]
-            static_part = static_parts[part_idx]
+            xyzt_part = torch.cat((xyz_part, batch["frame_dim"].unsqueeze(0).expand(xyz_part.shape[0], -1)), dim=1)
+            rigid_part = rigid_parts[part_idx]
             viewdir_part = viewdir_parts[part_idx]
             part_network = self.part_networks[part_idx]
-            ret_part = part_network(xyz_part, static_part, viewdir_part, dists, batch)
+            ret_part = part_network(xyz_part, xyzt_part, rigid_part, viewdir_part, dists, batch)
             ret_parts.append(ret_part)
 
         # fill in output
