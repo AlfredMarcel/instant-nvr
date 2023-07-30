@@ -56,7 +56,7 @@ ratio: 0.5
 tpose_deformer:
   module: "lib.networks.deformers.uv_deformer"
   hidden_dims: 32
-  hidden_layers: 3
+  hidden_layers: 1
   embedder:
     module: "lib.networks.embedders.part_base_embedder"
     kwargs:
@@ -78,7 +78,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 16
+        n_features_per_level: 8
         log2_hashmap_size: 20
         base_resolution: 16
         b: 1.38
@@ -94,7 +94,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 16
+        n_features_per_level: 8
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.38
@@ -114,7 +114,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 16
+        n_features_per_level: 8
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.38
@@ -129,7 +129,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 16
+        n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.38
@@ -149,7 +149,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 16
+        n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.38
