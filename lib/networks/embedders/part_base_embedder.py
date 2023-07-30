@@ -105,9 +105,16 @@ class Embedder(nn.Module):
             self.out_dim += self.dim
 
     def forward(self, xyz: torch.Tensor, batch):
+        # 实际上没有用cfg里的bbox，而是使用处理数据集中计算得到的bounds
         if self.use_batch_bounds and 'iter_step' in batch and batch['iter_step'] == 1:
             # cprint(f'part: {self.partname}\nori bbox:\n{self.bounds}\nnew bbox:\n{batch["bounds"][0][self.pid]}', color='green')
-            self.bounds = nn.Parameter(batch['bounds'][0][self.pid], requires_grad=False)
+            
+            if self.dim == 3:
+                self.bounds = nn.Parameter(batch['bounds'][0][self.pid][...,:-1], requires_grad=False)
+            elif self.dim == 4:
+                self.bounds = nn.Parameter(batch['bounds'][0][self.pid], requires_grad=False)
+            else:
+                raise NotImplementedError("dim must be 3 or 4")
 
         N, _ = xyz.shape  # N, dim
         offsets_num = self.offsets.shape[0]  # 2**dim

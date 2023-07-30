@@ -53,7 +53,7 @@ class Network(nn.Module):
         C, L = self.rgb_latent.shape
         embedded = self.embedder(tpts, batch)  # embedding
         embedded_4d = self.embedder_4d(pts4d, batch)  # 4d embedding 
-        embedded = torch.concat([embedded, embedded_4d], dim=0)
+        embedded = torch.concat([embedded, embedded_4d], dim=-1)
 
         # embedded_static = self.embedder(spts, batch)  # embedding rigid
         # embedded = torch.concat([embedded, embedded_static], dim=0)

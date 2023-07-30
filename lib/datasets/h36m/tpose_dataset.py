@@ -578,15 +578,18 @@ class Dataset(data.Dataset):
             part_pts = np.zeros((P, N, 3), dtype=np.float32)
             part_pbw = np.zeros((P, N, D), dtype=np.float32)
             lengths2 = np.zeros(P, dtype=int)
-            bounds = np.zeros((P, 2, 3), dtype=np.float32)
+            bounds = np.zeros((P, 2, 4), dtype=np.float32)
             for pid in range(P):
                 part_flag = (pts_part == pid)
                 lengths2[pid] = np.count_nonzero(part_flag)
                 part_pts[pid, :lengths2[pid]] = pose_verts[part_flag]
                 part_pbw[pid, :lengths2[pid]] = pose_bw[part_flag]
 
-                bounds[pid, 0] = tpose[part_flag].min(axis=0) - cfg.bbox_overlap
-                bounds[pid, 1] = tpose[part_flag].max(axis=0) + cfg.bbox_overlap
+                bounds[pid, 0, :-1] = tpose[part_flag].min(axis=0) - cfg.bbox_overlap
+                bounds[pid, 1, :-1] = tpose[part_flag].max(axis=0) + cfg.bbox_overlap
+                # 时间bounds
+                bounds[pid, 0, -1] = 0 
+                bounds[pid, 1, -1] = 1
 
             max_length = lengths2.max()
             part_pts = part_pts[:, :max_length, :]
