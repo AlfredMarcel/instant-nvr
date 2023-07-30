@@ -4,6 +4,7 @@ import os
 import numpy as np
 from pathlib import Path
 from termcolor import colored
+from itertools import product
 import torch
 from typing import Mapping, TypeVar
 KT = TypeVar("KT")  # key type
@@ -125,6 +126,11 @@ def merge_dicts(dict_a, dict_b, b_append_key):
     dict.update(dict2)
     return dict
 
+# 生成0，1组合的数组
+def generate_array(x):
+    combinations = list(product([0, 1], repeat=x))
+    array = np.array(combinations)
+    return array
 
 class DotDict(dict, Mapping[KT, VT]):
     """

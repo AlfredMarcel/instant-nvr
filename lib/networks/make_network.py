@@ -23,12 +23,12 @@ def make_embedder(cfg):
     return embedder
 
 
-def make_part_embedder(gcfg, partname, pid):
+def make_part_embedder(gcfg, partname, pid, dim=3):
     this_cfg = getattr(gcfg.partnet, partname)
     bbox = this_cfg.bbox
     module = this_cfg.embedder.module
     kwargs = this_cfg.embedder.kwargs
-    embedder = importlib.import_module(module).Embedder(bbox=bbox, pid=pid, partname=partname, **kwargs)
+    embedder = importlib.import_module(module).Embedder(bbox=bbox, pid=pid, partname=partname, dim=dim, **kwargs)
     return embedder
 
 

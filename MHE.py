@@ -4,17 +4,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from sympy import nextprime
-from lib.config import cfg
 from termcolor import cprint
-from lib.train.trainers.trainer import cuda_context
-from lib.utils.base_utils import generate_array
 
-# 扩展至四维的MHE编码
+# 写死了三维的MHE编码
+
+ps = [1, 19349663, 83492791]
+
 class Embedder(nn.Module):
     def __init__(self,
                  pid=-1,
                  partname='undefined',
-                 dim=3,
                  bbox=np.array([
                      [0, 0, 0],
                      [1, 1, 1]
@@ -27,7 +26,7 @@ class Embedder(nn.Module):
                  sum=True,
                  sum_over_features=True,
                  separate_dense=True,
-                 use_batch_bounds=cfg.use_batch_bounds,
+                 use_batch_bounds=True,
                  include_input=True,  # this will pass gradient better to input, but if you're using uvt, no need
                  ):
         """
@@ -38,7 +37,6 @@ class Embedder(nn.Module):
         super().__init__()
         self.pid = pid
         self.partname = partname
-        self.dim = dim
         self.n_levels = n_levels
         self.include_input = include_input
         self.use_batch_bounds = use_batch_bounds
@@ -48,16 +46,12 @@ class Embedder(nn.Module):
         self.f = n_features_per_level
         self.base_resolution = base_resolution
 
-        if self.dim == 4:
-            # 时间上的bbox为[0, 1]
-            bbox = np.concatenate([bbox, np.array([[0],[1]])], axis=1)
-
-        self.bounds = nn.Parameter(torch.tensor(np.array(bbox).reshape((2, self.dim))).float(), requires_grad=False)
+        self.bounds = nn.Parameter(torch.tensor(np.array(bbox).reshape((2, 3))).float(), requires_grad=False)
 
         # every level should have this number of entries per side
         # we'd like the border to be mapped inside 0, 1
         self.entries_num = [int((self.base_resolution * self.b**i)) for i in range(self.n_levels)]
-        self.entries_cnt = [self.entries_num[i] ** self.dim for i in range(self.n_levels)]
+        self.entries_cnt = [self.entries_num[i] ** 3 for i in range(self.n_levels)]
         self.entries_size = [1 / (self.entries_num[i] - 1) for i in range(self.n_levels)]
         self.entries_min = [0 for i in range(self.n_levels)]
 
@@ -85,8 +79,14 @@ class Embedder(nn.Module):
             self.hash = nn.Parameter(torch.zeros((self.n_levels, self.n_entries_per_level, self.f)))  # H, T, F
             nn.init.kaiming_normal_(self.hash)
 
-        offset = generate_array(self.dim)
-        self.offsets = nn.Parameter(torch.tensor(offset).float(), requires_grad=False)
+        self.offsets = nn.Parameter(torch.tensor([[0., 0., 0.],
+                                                  [0., 0., 1.],
+                                                  [0., 1., 0.],
+                                                  [0., 1., 1.],
+                                                  [1., 0., 0.],
+                                                  [1., 0., 1.],
+                                                  [1., 1., 0.],
+                                                  [1., 1., 1.]]).float(), requires_grad=False)
 
         self.sum = sum
         self.sum_over_features = sum_over_features
@@ -102,63 +102,61 @@ class Embedder(nn.Module):
             self.out_dim += self.f * self.n_levels
 
         if include_input:
-            self.out_dim += self.dim
+            self.out_dim += 3
 
     def forward(self, xyz: torch.Tensor, batch):
         if self.use_batch_bounds and 'iter_step' in batch and batch['iter_step'] == 1:
             # cprint(f'part: {self.partname}\nori bbox:\n{self.bounds}\nnew bbox:\n{batch["bounds"][0][self.pid]}', color='green')
             self.bounds = nn.Parameter(batch['bounds'][0][self.pid], requires_grad=False)
-
-        N, _ = xyz.shape  # N, dim
-        offsets_num = self.offsets.shape[0]  # 2**dim
         
-        xyz = (xyz - self.bounds[0]) / (self.bounds[1] - self.bounds[0])  # normalized, N, dim
+        N, _ = xyz.shape  # N, 3
+        xyz = (xyz - self.bounds[0]) / (self.bounds[1] - self.bounds[0])  # normalized, N, 3
 
-        ind_xyz = xyz[None].expand(self.n_levels, -1, -1)  # L, N, dim
-        flt_xyz = ind_xyz / self.entries_size[:, None, None]  # L, N, dim
-        int_xyz = (flt_xyz[:, :, None] + self.offsets[None, None]).long()  # will round to zero, L, N, offsets_num, dim
+        ind_xyz = xyz[None].expand(self.n_levels, -1, -1)  # L, N, 3
+        flt_xyz = ind_xyz / self.entries_size[:, None, None]  # L, N, 3
+        int_xyz = (flt_xyz[:, :, None] + self.offsets[None, None]).long()  # will round to zero, L, N, 8, 3
         int_xyz = int_xyz.clip(self.entries_min[:, None, None, None], self.entries_num[:, None, None, None]-1)
-        off_xyz = flt_xyz - int_xyz[:, :, 0]  # L, N, dim
+        off_xyz = flt_xyz - int_xyz[:, :, 0]  # L, N, 3
 
         sh = self.start_hash
         nl = self.n_levels
 
-        # x as first digit, y as second digit, z as last digit -> S, N, offsets_num
+        # x as first digit, y as second digit, z as last digit -> S, N, 8
         ind_dense: torch.Tensor = \
             int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**2)[:, None, None] + \
             int_xyz[:sh, ..., 1] * (self.entries_num[:sh])[:, None, None] + \
             int_xyz[:sh, ..., 2]
         if self.separate_dense:
-            ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, offsets_num
+            ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, 8
 
-        # hashing -> H, N, offsets_num
+        # hashing -> H, N, 8
         ind_hash: torch.Tensor = (
-            int_xyz[sh:, ..., 0]*cfg.ps[0] ^
-            int_xyz[sh:, ..., 1]*cfg.ps[1] ^
-            int_xyz[sh:, ..., 2]*cfg.ps[2]
+            int_xyz[sh:, ..., 0]*ps[0] ^
+            int_xyz[sh:, ..., 1]*ps[1] ^
+            int_xyz[sh:, ..., 2]*ps[2]
         ) % self.n_entries_per_level
         if not self.separate_dense:
             ind = torch.cat([ind_dense, ind_hash], dim=0)
 
-        # data: L, T, F, ind: L, N, offsets_num -> L, N, offsets_num, F feature
+        # data: L, T, F, ind: L, N, 8 -> L, N, 8, F feature
         # NOTE: gather backward is much faster than index_select
-        # val = self.data[torch.arange(nl, dtype=torch.long, device=ind.device)[..., None, None], ind, :]  # -> L, N, offsets_num, F
+        # val = self.data[torch.arange(nl, dtype=torch.long, device=ind.device)[..., None, None], ind, :]  # -> L, N, 8, F
         L, T, F = self.n_levels, self.n_entries_per_level, self.f
         S, H = self.start_hash, self.n_levels - self.start_hash
 
         # MARK: this is the first optimizable step, should wait for previous stream to finish updating here
-        if 'prev_stream' in cuda_context:
-            cuda_context.curr_stream.wait_stream(cuda_context.prev_stream)  # wait for previous stream update to finish
+        # if 'prev_stream' in cuda_context:
+        #     cuda_context.curr_stream.wait_stream(cuda_context.prev_stream)  # wait for previous stream update to finish
         if self.separate_dense:
-            val_dense = self.dense.gather(dim=0, index=ind_dense.view(S * N * offsets_num)[..., None].expand(-1, F)).view(S, N, offsets_num, F)
-            val_hash = self.hash.gather(dim=1, index=ind_hash.view(H, N * offsets_num)[..., None].expand(-1, -1, F)).view(H, N, offsets_num, F)
+            val_dense = self.dense.gather(dim=0, index=ind_dense.view(S * N * 8)[..., None].expand(-1, F)).view(S, N, 8, F)
+            val_hash = self.hash.gather(dim=1, index=ind_hash.view(H, N * 8)[..., None].expand(-1, -1, F)).view(H, N, 8, F)
             val = torch.cat([val_dense, val_hash], dim=0)
         else:
-            val = self.hash.gather(dim=1, index=ind.view(L, N * offsets_num)[..., None].expand(-1, -1, F)).view(L, N, offsets_num, F)
+            val = self.hash.gather(dim=1, index=ind.view(L, N * 8)[..., None].expand(-1, -1, F)).view(L, N, 8, F)
 
-        # off: L, N, dim, sets: offsets_num, dim -> L, N, :, dim and :, :, offsets_num, dim, compute xyz distance to the other corner, mul: multiplier
+        # off: L, N, 3, sets: 8, 3 -> L, N, :, 3 and :, :, 8, 3, compute xyz distance to the other corner, mul: multiplier
         mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
-        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, offsets_num
+        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, 8
         val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
 
         # feature aggregation
@@ -184,7 +182,8 @@ if __name__ == "__main__":
             [-0.2, 0.4, 0.3],
             [0.3, -0.7, -0.3]
         ]
-    ).cuda()
+    )
+    #.cuda()
     batch = {
         'frame_dim': [0]
     }
