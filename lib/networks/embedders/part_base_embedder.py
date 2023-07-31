@@ -116,73 +116,147 @@ class Embedder(nn.Module):
             else:
                 raise NotImplementedError("dim must be 3 or 4")
 
-        N, _ = xyz.shape  # N, dim
-        offsets_num = self.offsets.shape[0]  # 2**dim
-        
-        xyz = (xyz - self.bounds[0]) / (self.bounds[1] - self.bounds[0])  # normalized, N, dim
+        if self.dim == 3:
 
-        ind_xyz = xyz[None].expand(self.n_levels, -1, -1)  # L, N, dim
-        flt_xyz = ind_xyz / self.entries_size[:, None, None]  # L, N, dim
-        int_xyz = (flt_xyz[:, :, None] + self.offsets[None, None]).long()  # will round to zero, L, N, offsets_num, dim
-        int_xyz = int_xyz.clip(self.entries_min[:, None, None, None], self.entries_num[:, None, None, None]-1)
-        off_xyz = flt_xyz - int_xyz[:, :, 0]  # L, N, dim
+            N, _ = xyz.shape  # N, dim
+            offsets_num = self.offsets.shape[0]  # 2**dim
+            
+            xyz = (xyz - self.bounds[0]) / (self.bounds[1] - self.bounds[0])  # normalized, N, dim
 
-        sh = self.start_hash
-        nl = self.n_levels
+            ind_xyz = xyz[None].expand(self.n_levels, -1, -1)  # L, N, dim
+            flt_xyz = ind_xyz / self.entries_size[:, None, None]  # L, N, dim
+            int_xyz = (flt_xyz[:, :, None] + self.offsets[None, None]).long()  # will round to zero, L, N, offsets_num, dim
+            int_xyz = int_xyz.clip(self.entries_min[:, None, None, None], self.entries_num[:, None, None, None]-1)
+            off_xyz = flt_xyz - int_xyz[:, :, 0]  # L, N, dim
 
-        # x as first digit, y as second digit, z as last digit -> S, N, offsets_num
-        ind_dense: torch.Tensor = \
-            int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**2)[:, None, None] + \
-            int_xyz[:sh, ..., 1] * (self.entries_num[:sh])[:, None, None] + \
-            int_xyz[:sh, ..., 2]
-        if self.separate_dense:
-            ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, offsets_num
+            sh = self.start_hash
+            nl = self.n_levels
 
-        # hashing -> H, N, offsets_num
-        ind_hash: torch.Tensor = (
-            int_xyz[sh:, ..., 0]*cfg.ps[0] ^
-            int_xyz[sh:, ..., 1]*cfg.ps[1] ^
-            int_xyz[sh:, ..., 2]*cfg.ps[2]
-        ) % self.n_entries_per_level
-        if not self.separate_dense:
-            ind = torch.cat([ind_dense, ind_hash], dim=0)
+            # x as first digit, y as second digit, z as last digit -> S, N, offsets_num
+            ind_dense: torch.Tensor = \
+                int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**2)[:, None, None] + \
+                int_xyz[:sh, ..., 1] * (self.entries_num[:sh])[:, None, None] + \
+                int_xyz[:sh, ..., 2]
+            if self.separate_dense:
+                ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, offsets_num
 
-        # data: L, T, F, ind: L, N, offsets_num -> L, N, offsets_num, F feature
-        # NOTE: gather backward is much faster than index_select
-        # val = self.data[torch.arange(nl, dtype=torch.long, device=ind.device)[..., None, None], ind, :]  # -> L, N, offsets_num, F
-        L, T, F = self.n_levels, self.n_entries_per_level, self.f
-        S, H = self.start_hash, self.n_levels - self.start_hash
+            # hashing -> H, N, offsets_num
+            ind_hash: torch.Tensor = (
+                int_xyz[sh:, ..., 0]*cfg.ps[0] ^
+                int_xyz[sh:, ..., 1]*cfg.ps[1] ^
+                int_xyz[sh:, ..., 2]*cfg.ps[2]
+            ) % self.n_entries_per_level
+            if not self.separate_dense:
+                ind = torch.cat([ind_dense, ind_hash], dim=0)
 
-        # MARK: this is the first optimizable step, should wait for previous stream to finish updating here
-        if 'prev_stream' in cuda_context:
-            cuda_context.curr_stream.wait_stream(cuda_context.prev_stream)  # wait for previous stream update to finish
-        if self.separate_dense:
-            val_dense = self.dense.gather(dim=0, index=ind_dense.view(S * N * offsets_num)[..., None].expand(-1, F)).view(S, N, offsets_num, F)
-            val_hash = self.hash.gather(dim=1, index=ind_hash.view(H, N * offsets_num)[..., None].expand(-1, -1, F)).view(H, N, offsets_num, F)
-            val = torch.cat([val_dense, val_hash], dim=0)
-        else:
-            val = self.hash.gather(dim=1, index=ind.view(L, N * offsets_num)[..., None].expand(-1, -1, F)).view(L, N, offsets_num, F)
+            # data: L, T, F, ind: L, N, offsets_num -> L, N, offsets_num, F feature
+            # NOTE: gather backward is much faster than index_select
+            # val = self.data[torch.arange(nl, dtype=torch.long, device=ind.device)[..., None, None], ind, :]  # -> L, N, offsets_num, F
+            L, T, F = self.n_levels, self.n_entries_per_level, self.f
+            S, H = self.start_hash, self.n_levels - self.start_hash
 
-        # off: L, N, dim, sets: offsets_num, dim -> L, N, :, dim and :, :, offsets_num, dim, compute xyz distance to the other corner, mul: multiplier
-        mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
-        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, offsets_num
-        val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
-
-        # feature aggregation
-        val = val.permute(1, 0, 2)  # N, L, F
-        if self.sum:
-            if self.sum_over_features:
-                val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+            # MARK: this is the first optimizable step, should wait for previous stream to finish updating here
+            if 'prev_stream' in cuda_context:
+                cuda_context.curr_stream.wait_stream(cuda_context.prev_stream)  # wait for previous stream update to finish
+            if self.separate_dense:
+                val_dense = self.dense.gather(dim=0, index=ind_dense.view(S * N * offsets_num)[..., None].expand(-1, F)).view(S, N, offsets_num, F)
+                val_hash = self.hash.gather(dim=1, index=ind_hash.view(H, N * offsets_num)[..., None].expand(-1, -1, F)).view(H, N, offsets_num, F)
+                val = torch.cat([val_dense, val_hash], dim=0)
             else:
-                val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+                val = self.hash.gather(dim=1, index=ind.view(L, N * offsets_num)[..., None].expand(-1, -1, F)).view(L, N, offsets_num, F)
+
+            # off: L, N, dim, sets: offsets_num, dim -> L, N, :, dim and :, :, offsets_num, dim, compute xyz distance to the other corner, mul: multiplier
+            mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
+            mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, offsets_num
+            val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+
+            # feature aggregation
+            val = val.permute(1, 0, 2)  # N, L, F
+            if self.sum:
+                if self.sum_over_features:
+                    val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                else:
+                    val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+            else:
+                val = val.reshape(-1, L*F)  # N, L*F
+
+            # feature boosting
+            if self.include_input:
+                val = torch.cat([xyz, val], dim=-1)
+            return val
+
+        elif self.dim == 4:
+            N, _ = xyz.shape  # N, dim
+            offsets_num = self.offsets.shape[0]  # 2**dim
+            
+            xyz = (xyz - self.bounds[0]) / (self.bounds[1] - self.bounds[0])  # normalized, N, dim
+
+            ind_xyz = xyz[None].expand(self.n_levels, -1, -1)  # L, N, dim
+            flt_xyz = ind_xyz / self.entries_size[:, None, None]  # L, N, dim
+            int_xyz = (flt_xyz[:, :, None] + self.offsets[None, None]).long()  # will round to zero, L, N, offsets_num, dim
+            int_xyz = int_xyz.clip(self.entries_min[:, None, None, None], self.entries_num[:, None, None, None]-1)
+            off_xyz = flt_xyz - int_xyz[:, :, 0]  # L, N, dim
+
+            sh = self.start_hash
+            nl = self.n_levels
+
+            # x as first digit, y as second digit, z as last digit -> S, N, offsets_num
+            ind_dense: torch.Tensor = \
+                int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**3)[:, None, None] + \
+                int_xyz[:sh, ..., 1] * (self.entries_num[:sh]**2)[:, None, None] + \
+                int_xyz[:sh, ..., 2] * (self.entries_num[:sh])[:, None, None] + \
+                int_xyz[:sh, ..., 3]
+            if self.separate_dense:
+                ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, offsets_num
+
+            # hashing -> H, N, offsets_num
+            ind_hash: torch.Tensor = (
+                int_xyz[sh:, ..., 0]*cfg.ps[0] ^
+                int_xyz[sh:, ..., 1]*cfg.ps[1] ^
+                int_xyz[sh:, ..., 2]*cfg.ps[2] ^
+                int_xyz[sh:, ..., 3]*cfg.ps[3]
+            ) % self.n_entries_per_level
+            if not self.separate_dense:
+                ind = torch.cat([ind_dense, ind_hash], dim=0)
+
+            # data: L, T, F, ind: L, N, offsets_num -> L, N, offsets_num, F feature
+            # NOTE: gather backward is much faster than index_select
+            # val = self.data[torch.arange(nl, dtype=torch.long, device=ind.device)[..., None, None], ind, :]  # -> L, N, offsets_num, F
+            L, T, F = self.n_levels, self.n_entries_per_level, self.f
+            S, H = self.start_hash, self.n_levels - self.start_hash
+
+            # MARK: this is the first optimizable step, should wait for previous stream to finish updating here
+            if 'prev_stream' in cuda_context:
+                cuda_context.curr_stream.wait_stream(cuda_context.prev_stream)  # wait for previous stream update to finish
+            if self.separate_dense:
+                val_dense = self.dense.gather(dim=0, index=ind_dense.view(S * N * offsets_num)[..., None].expand(-1, F)).view(S, N, offsets_num, F)
+                val_hash = self.hash.gather(dim=1, index=ind_hash.view(H, N * offsets_num)[..., None].expand(-1, -1, F)).view(H, N, offsets_num, F)
+                val = torch.cat([val_dense, val_hash], dim=0)
+            else:
+                val = self.hash.gather(dim=1, index=ind.view(L, N * offsets_num)[..., None].expand(-1, -1, F)).view(L, N, offsets_num, F)
+
+            # off: L, N, dim, sets: offsets_num, dim -> L, N, :, dim and :, :, offsets_num, dim, compute xyz distance to the other corner, mul: multiplier
+            mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
+            mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2] * mul_xyz[..., 3]  # L, N, offsets_num
+            val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+
+            # feature aggregation
+            val = val.permute(1, 0, 2)  # N, L, F
+            if self.sum:
+                if self.sum_over_features:
+                    val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                else:
+                    val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+            else:
+                val = val.reshape(-1, L*F)  # N, L*F
+
+            # feature boosting
+            if self.include_input:
+                val = torch.cat([xyz, val], dim=-1)
+            return val
+
         else:
-            val = val.reshape(-1, L*F)  # N, L*F
-
-        # feature boosting
-        if self.include_input:
-            val = torch.cat([xyz, val], dim=-1)
-        return val
-
+            raise NotImplementedError("dim must be 3 or 4")
 
 if __name__ == "__main__":
     torch.manual_seed(0)

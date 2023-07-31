@@ -14,7 +14,8 @@ cfg.part6 = False
 
 cfg.aggr = ""
 
-cfg.ps = [1, 19349663, 83492791]
+# cfg.ps = [1, 19349663, 83492791]
+cfg.ps = [1, 19349663, 51471207, 83492791]
 
 cfg.fast_eval = False
 cfg.eval_ratio = -1.0
