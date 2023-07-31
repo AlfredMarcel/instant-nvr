@@ -27,7 +27,10 @@ def make_part_embedder(gcfg, partname, pid, dim=3):
     this_cfg = getattr(gcfg.partnet, partname)
     bbox = this_cfg.bbox
     module = this_cfg.embedder.module
-    kwargs = this_cfg.embedder.kwargs
+    if dim == 3:
+        kwargs = this_cfg.embedder.kwargs
+    elif dim == 4:
+        kwargs = this_cfg.embedder.kwargs_4d
     embedder = importlib.import_module(module).Embedder(bbox=bbox, pid=pid, partname=partname, dim=dim, **kwargs)
     return embedder
 

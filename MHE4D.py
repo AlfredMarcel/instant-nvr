@@ -8,7 +8,7 @@ from termcolor import cprint
 
 # 四维的MHE编码
 
-ps = [1, 19349663, 83492791]
+ps = [1, 19349663, 51471207, 83492791]
 
 class Embedder(nn.Module):
     def __init__(self,
@@ -18,8 +18,8 @@ class Embedder(nn.Module):
                      [0, 0, 0, 0],
                      [1, 1, 1, 1]
                  ]),
-                 n_levels=16,
-                 n_features_per_level=16,
+                 n_levels=4,
+                 n_features_per_level=2,
                  b=1.38,
                  log2_hashmap_size=18,
                  base_resolution=2,
@@ -27,7 +27,7 @@ class Embedder(nn.Module):
                  sum_over_features=True,
                  separate_dense=True,
                  use_batch_bounds=True,
-                 include_input=True,  # this will pass gradient better to input, but if you're using uvt, no need
+                 include_input=False,  # this will pass gradient better to input, but if you're using uvt, no need
                  ):
         """
         WIP:
@@ -132,9 +132,10 @@ class Embedder(nn.Module):
 
         # x as first digit, y as second digit, z as last digit -> S, N, 16
         ind_dense: torch.Tensor = \
-            int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**2)[:, None, None] + \
-            int_xyz[:sh, ..., 1] * (self.entries_num[:sh])[:, None, None] + \
-            int_xyz[:sh, ..., 2]
+            int_xyz[:sh, ..., 0] * (self.entries_num[:sh]**3)[:, None, None] + \
+            int_xyz[:sh, ..., 1] * (self.entries_num[:sh]**2)[:, None, None] + \
+            int_xyz[:sh, ..., 2] * (self.entries_num[:sh])[:, None, None] + \
+            int_xyz[:sh, ..., 3]
         if self.separate_dense:
             ind_dense[1:] = ind_dense[1:] + self.entries_sum[:self.start_hash-1][:, None, None]  # S, N, 16
 
@@ -142,7 +143,8 @@ class Embedder(nn.Module):
         ind_hash: torch.Tensor = (
             int_xyz[sh:, ..., 0]*ps[0] ^
             int_xyz[sh:, ..., 1]*ps[1] ^
-            int_xyz[sh:, ..., 2]*ps[2]
+            int_xyz[sh:, ..., 2]*ps[2] ^
+            int_xyz[sh:, ..., 3]*ps[3]
         ) % self.n_entries_per_level
         if not self.separate_dense:
             ind = torch.cat([ind_dense, ind_hash], dim=0)
@@ -165,7 +167,7 @@ class Embedder(nn.Module):
 
         # off: L, N, 4, sets: 16, 4 -> L, N, :, 4 and :, :, 16, 4, compute xyz distance to the other corner, mul: multiplier
         mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
-        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, 16
+        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2] * mul_xyz[..., 3]  # L, N, 16
         val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
 
         # feature aggregation

@@ -86,6 +86,16 @@ partnet:
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+      kwargs_4d:
+        n_levels: 16
+        n_features_per_level: 8
+        log2_hashmap_size: 20
+        base_resolution: 16
+        b: 1.38
+        sum: True
+        sum_over_features: True
+        separate_dense: True
+        use_batch_bounds: True
     bbox: [[-1, -1.2, -0.34], [0.8, 0.7, 0.5]]
     # pretrained: 'exps/inb/inb_377_body1/trained_model/body.pth'
   leg:
@@ -93,6 +103,16 @@ partnet:
     embedder:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
+        n_levels: 16
+        n_features_per_level: 8
+        log2_hashmap_size: 20
+        base_resolution: 2
+        b: 1.38
+        sum: True
+        sum_over_features: True
+        separate_dense: True
+        use_batch_bounds: True
+      kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
@@ -122,12 +142,32 @@ partnet:
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+      kwargs_4d:
+        n_levels: 16
+        n_features_per_level: 8
+        log2_hashmap_size: 18
+        base_resolution: 2
+        b: 1.38
+        sum: True
+        sum_over_features: True
+        separate_dense: True
+        use_batch_bounds: True
     bbox: [[-0.3, 0.3, -0.3], [0.3, 0.7, 0.3]]
   larm:
     module: "lib.networks.bw_deform.part_base_network"
     embedder:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
+        n_levels: 16
+        n_features_per_level: 8
+        log2_hashmap_size: 15
+        base_resolution: 2
+        b: 1.38
+        sum: True
+        sum_over_features: True
+        separate_dense: True
+        use_batch_bounds: True
+      kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 15
@@ -148,6 +188,16 @@ partnet:
     embedder:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
+        n_levels: 16
+        n_features_per_level: 8
+        log2_hashmap_size: 15
+        base_resolution: 2
+        b: 1.38
+        sum: True
+        sum_over_features: True
+        separate_dense: True
+        use_batch_bounds: True
+      kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 15
