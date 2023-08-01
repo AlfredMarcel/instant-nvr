@@ -66,7 +66,8 @@ tpose_deformer:
       base_resolution: 4
       b: 1.38
       sum: False
-      sum_over_features: True
+      sum_over_features: False
+
       separate_dense: True
       use_batch_bounds: False
       include_input: True
@@ -83,7 +84,8 @@ partnet:
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -93,7 +95,8 @@ partnet:
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
     bbox: [[-1, -1.2, -0.34], [0.8, 0.7, 0.5]]
@@ -109,7 +112,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -119,7 +123,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -139,7 +144,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -149,7 +155,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
     bbox: [[-0.3, 0.3, -0.3], [0.3, 0.7, 0.3]]
@@ -164,7 +171,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -174,7 +182,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -194,7 +203,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -204,7 +214,8 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
+
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -222,7 +233,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 6
+  epoch: 15
   scheduler:
     type: "exponential"
     gamma: 0.1

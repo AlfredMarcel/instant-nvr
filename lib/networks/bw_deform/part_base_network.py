@@ -38,9 +38,9 @@ class Network(nn.Module):
         # self.embedder_static: HashEmbedder = make_part_embedder(cfg, partname, pid)
         self.embedder_dir: FreqEmbedder = make_viewdir_embedder(cfg)
         self.occ = MLP(self.embedder.out_dim + self.embedder_4d.out_dim, 1 + cfg.geo_feature_dim, **cfg.network.occ)
-        indim_rgb = self.embedder.out_dim + self.embedder_4d.out_dim + self.embedder_dir.out_dim + cfg.geo_feature_dim + cfg.latent_code_dim
-        self.rgb_latent = nn.Parameter(torch.zeros(cfg.num_latent_code, cfg.latent_code_dim))
-        nn.init.kaiming_normal_(self.rgb_latent)
+        indim_rgb = self.embedder.out_dim + self.embedder_4d.out_dim + self.embedder_dir.out_dim + cfg.geo_feature_dim # + cfg.latent_code_dim
+        # self.rgb_latent = nn.Parameter(torch.zeros(cfg.num_latent_code, cfg.latent_code_dim))
+        # nn.init.kaiming_normal_(self.rgb_latent)
         self.rgb = make_part_color_network(cfg, partname, indim=indim_rgb)
 
     def forward(self, tpts: torch.Tensor, pts4d: torch.Tensor ,spts: torch.Tensor, viewdir: torch.Tensor, dists: torch.Tensor, batch):
@@ -64,8 +64,8 @@ class Network(nn.Module):
         feature = hidden[..., 1:]
 
         embedded_dir = self.embedder_dir(viewdir, batch)  # embedding
-        latent_code = self.rgb_latent.gather(dim=0, index=batch['latent_index'].expand(N, L))  # NOTE: ignoring batch dimension
-        input = torch.cat([embedded, embedded_dir, feature, latent_code], dim=-1)
+        # latent_code = self.rgb_latent.gather(dim=0, index=batch['latent_index'].expand(N, L))  # NOTE: ignoring batch dimension
+        input = torch.cat([embedded, embedded_dir, feature], dim=-1)
         rgb: torch.Tensor = self.rgb(input)  # networking
         rgb = rgb.sigmoid()  # activation
 
