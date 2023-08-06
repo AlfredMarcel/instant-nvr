@@ -78,7 +78,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 16
         log2_hashmap_size: 20
         base_resolution: 16
         b: 1.38
@@ -104,7 +104,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 16
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.38
@@ -134,7 +134,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 16
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.38
@@ -159,7 +159,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 16
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.38
@@ -189,7 +189,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 16
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.38
@@ -239,7 +239,7 @@ test:
 val:
   frame_sampler_interval: 20
 
-eval_ep: 10
+eval_ep: 6
 save_latest_ep: 5
 save_ep: 400
 ep_iter: 500
@@ -310,3 +310,5 @@ pair_loss_weight: 10.0
 
 eval_ratio: 0.5
 silent: False
+
+# prune_using_geo : True
