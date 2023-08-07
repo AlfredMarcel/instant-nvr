@@ -1,6 +1,7 @@
 import torch.nn as nn
 from lib.config import cfg
 import torch
+import cv2
 import torchvision.models.vgg as vgg
 from collections import namedtuple
 from lib.networks.renderer import inb_renderer
@@ -181,9 +182,26 @@ class NetworkWrapper(nn.Module):
         elif split == 'train':
             img_loss = self.img2mse(ret['rgb_map'], batch['rgb'])
             err = (torch.abs(ret['rgb_map'] - batch['rgb']).sum(dim=-1)).detach().cpu()
+
+            if cfg.show_train_patch:
+                rgb_pred = ret['rgb_map'][0].detach().cpu().numpy()
+                rgb_gt = batch['rgb'][0].detach().cpu().numpy()
+                mask_at_box = batch['mask_at_box'][0].detach().cpu().numpy()
+                H, W = batch['H'].item(), batch['W'].item()
+                mask_at_box = mask_at_box.reshape(H, W)
+
+                img_pred = np.zeros((H, W, 3))
+                img_pred[mask_at_box] = rgb_pred
+
+                img_gt = np.zeros((H, W, 3))
+                img_gt[mask_at_box] = rgb_gt
+
+                cv2.imwrite('pred.png', (img_pred[..., [2, 1, 0]] * 255))
+                cv2.imwrite('gt.png', (img_gt[..., [2, 1, 0]] * 255))     
+
             psnr = -10 * np.log(img_loss.item()) / np.log(10)
             scalar_stats.update({'img_loss': img_loss, 'psnr': torch.Tensor([psnr])})
-            breakpoint()
+            # breakpoint()
 
             if cfg.use_lpips or cfg.use_ssim or cfg.use_fourier or cfg.use_tv_image:
                 H, W = batch['H'].item(), batch['W'].item()
@@ -191,7 +209,7 @@ class NetworkWrapper(nn.Module):
                 rgb_gt = batch['rgb']
                 occ_gt = batch['occupancy']
 
-                breakpoint()
+                # breakpoint()
 
                 mask_at_box = batch['mask_at_box'][0].detach().cpu()
                 H, W = batch['H'].item(), batch['W'].item()
@@ -206,7 +224,7 @@ class NetworkWrapper(nn.Module):
                 mask_gt = torch.zeros((H, W), device=rgb_pred.device, dtype=torch.bool)
                 mask_gt[mask_at_box] = occ_gt.bool()
 
-                breakpoint()
+                # breakpoint()
 
                 if cfg.use_lpips:
                     img_lpips_loss = self.perceptual_loss(img_pred.permute(2, 0, 1)[None], img_gt.permute(2, 0, 1)[None])

@@ -440,7 +440,7 @@ class Dataset(data.Dataset):
             mask_at_box = mask_at_box.reshape(-1)
             occupancy = (msk[coord[:, 1], coord[:, 0]] > 0)
         else:
-            breakpoint()
+            # breakpoint()
             flag = cfg.prune_using_geo and os.path.exists(os.path.join(cfg.result_dir, "latest.npy"))
             nrays = self.nrays if not flag else 2 * self.nrays
             rgb, ray_o, ray_d, near, far, coord, mask_at_box = if_nerf_dutils.sample_ray_h36m(

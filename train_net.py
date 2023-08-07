@@ -128,6 +128,8 @@ def train(cfg, network):
 
     # try:
     print(colored(f"[*] Training experiment {cfg.exp_name} started, log_interval: {cfg.log_interval}", 'green'))
+    print("begin_epoch: ", begin_epoch)
+    print("train_epoch: ", cfg.train.epoch)
     for epoch in range(begin_epoch, cfg.train.epoch):
         change_training_stages(epoch)
         recorder.epoch = epoch

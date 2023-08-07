@@ -14,6 +14,8 @@ cfg.part6 = False
 
 cfg.aggr = ""
 
+cfg.show_train_patches = False
+
 # cfg.ps = [1, 19349663, 83492791]
 cfg.ps = [1, 19349663, 51471207, 83492791]
 
