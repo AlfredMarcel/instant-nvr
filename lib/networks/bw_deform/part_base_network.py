@@ -35,11 +35,11 @@ class Network(nn.Module):
 
         self.embedder: HashEmbedder = make_part_embedder(cfg, partname, pid)
 
-        # self.embedder_4d: HashEmbedder = make_part_embedder(cfg, partname, pid, dim=4)
+        self.embedder_4d: HashEmbedder = make_part_embedder(cfg, partname, pid, dim=4)
         # self.embedder_static: HashEmbedder = make_part_embedder(cfg, partname, pid)
         self.embedder_dir: FreqEmbedder = make_viewdir_embedder(cfg)
-        self.occ = MLP(self.embedder.out_dim, 1 + cfg.geo_feature_dim, **cfg.network.occ)
-        indim_rgb = self.embedder.out_dim + self.embedder_dir.out_dim + cfg.geo_feature_dim + cfg.latent_code_dim
+        self.occ = MLP(self.embedder.out_dim + self.embedder_4d.out_dim, 1 + cfg.geo_feature_dim, **cfg.network.occ)
+        indim_rgb = self.embedder.out_dim + self.embedder_4d.out_dim + self.embedder_dir.out_dim + cfg.geo_feature_dim + cfg.latent_code_dim
         self.rgb_latent = nn.Parameter(torch.zeros(cfg.num_latent_code, cfg.latent_code_dim))
         nn.init.kaiming_normal_(self.rgb_latent)
         self.rgb = make_part_color_network(cfg, partname, indim=indim_rgb)
@@ -53,8 +53,8 @@ class Network(nn.Module):
         N, D = tpts.shape
         C, L = self.rgb_latent.shape
         embedded = self.embedder(tpts, batch)  # embedding
-        # embedded_4d = self.embedder_4d(pts4d, batch)  # 4d embedding 
-        # embedded = torch.concat([embedded, embedded_4d], dim=-1)
+        embedded_4d = self.embedder_4d(pts4d, batch)  # 4d embedding 
+        embedded = torch.concat([embedded, embedded_4d], dim=-1)
 
         # embedded_static = self.embedder(spts, batch)  # embedding rigid
         # embedded = torch.concat([embedded, embedded_static], dim=0)
