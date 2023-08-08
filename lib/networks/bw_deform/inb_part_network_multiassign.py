@@ -155,7 +155,7 @@ class Network(GradModule):
 
         B, N = wpts.shape[:2]
         assert B == 1
-        raw = torch.zeros((B, N, 4), device=wpts.device, dtype=wpts.dtype)
+        raw = torch.zeros((B, N, 4+cfg.t_features_dim), device=wpts.device, dtype=wpts.dtype)
         occ = torch.zeros((B, N, 1), device=wpts.device, dtype=wpts.dtype)
         raw[0, pind[:, 0]] = ret['raw']  # NOTE: ignoring batch dimension
         occ[0, pind[:, 0]] = ret['occ']
@@ -200,7 +200,7 @@ class TPoseHuman(GradModule):
 
         # prepare inputs
         N = tpts.shape[0]
-        raws = torch.zeros(N, NUM_PARTS, 4, device=tpts.device)
+        raws = torch.zeros(N, NUM_PARTS, 4 + cfg.t_features_dim, device=tpts.device)
         occs = torch.zeros(N, NUM_PARTS, 1, device=tpts.device)
 
         # computing indices
@@ -257,7 +257,7 @@ class TPoseHuman(GradModule):
             occ = torch.gather(occs, 1, ind)[:, 0, :]
             return {'raw': raw, 'occ': occ, 'tocc': occs}
 
-        ind = occs.argmax(dim=1).reshape(N, 1, 1).expand(N, 1, 4)
+        ind = occs.argmax(dim=1).reshape(N, 1, 1).expand(N, 1, 4+cfg.t_features_dim)
         raw = torch.gather(raws, 1, ind)[:, 0, :]
         occ = occs.max(dim=1)[0]
         return {'raw': raw, 'occ': occ, 'tocc': occs}

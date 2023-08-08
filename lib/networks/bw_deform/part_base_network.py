@@ -53,7 +53,7 @@ class Network(nn.Module):
         N, D = tpts.shape
         C, L = self.rgb_latent.shape
         embedded = self.embedder(tpts, batch)  # embedding
-        embedded_4d = self.embedder_4d(pts4d, batch)  # 4d embedding 
+        embedded_4d, smooth_t = self.embedder_4d(pts4d, batch)  # 4d embedding 
         embedded = torch.concat([embedded, embedded_4d], dim=-1)
 
         # embedded_static = self.embedder(spts, batch)  # embedding rigid
@@ -70,7 +70,7 @@ class Network(nn.Module):
         rgb: torch.Tensor = self.rgb(input)  # networking
         rgb = rgb.sigmoid()  # activation
 
-        raw = torch.cat([rgb, occ], dim=-1)
+        raw = torch.cat([rgb, occ, smooth_t], dim=-1)
         ret = {'raw': raw, 'occ': occ}
 
         return ret

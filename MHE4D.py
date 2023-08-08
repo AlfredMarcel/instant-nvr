@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 from sympy import nextprime
 from termcolor import cprint
+from lib.utils.base_utils import generate_array
 
 # 四维的MHE编码
 
@@ -15,8 +16,8 @@ class Embedder(nn.Module):
                  pid=-1,
                  partname='undefined',
                  bbox=np.array([
-                     [0, 0, 0, 0],
-                     [1, 1, 1, 1]
+                     [0, 0, 0.2, 0.05],
+                     [1.2, 1.7, 1.1, 2]
                  ]),
                  n_levels=4,
                  n_features_per_level=2,
@@ -79,23 +80,8 @@ class Embedder(nn.Module):
             self.hash = nn.Parameter(torch.zeros((self.n_levels, self.n_entries_per_level, self.f)))  # H, T, F
             nn.init.kaiming_normal_(self.hash)
 
-        self.offsets = nn.Parameter(torch.tensor([[0., 0., 0., 0.],
-                                                  [0., 0., 0., 1.],
-                                                  [0., 0., 1., 0.],
-                                                  [0., 1., 0., 0.],
-                                                  [1., 0., 0., 0.],
-                                                  [0., 0., 1., 1.],
-                                                  [0., 1., 0., 1.],
-                                                  [1., 0., 0., 1.],
-                                                  [0., 1., 1., 0.],
-                                                  [1., 0., 1., 0.],
-                                                  [1., 1., 0., 0.],
-                                                  [0., 1., 1., 1.],
-                                                  [1., 0., 1., 1.],
-                                                  [1., 1., 0., 1.],
-                                                  [1., 1., 1., 0.],
-                                                  [1., 1., 1., 1.]
-                                                  ]).float(), requires_grad=False)
+        offset = generate_array(4)
+        self.offsets = nn.Parameter(torch.tensor(offset).float(), requires_grad=False)
 
         self.sum = sum
         self.sum_over_features = sum_over_features
@@ -167,31 +153,47 @@ class Embedder(nn.Module):
 
         # off: L, N, 4, sets: 16, 4 -> L, N, :, 4 and :, :, 16, 4, compute xyz distance to the other corner, mul: multiplier
         mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
-        mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2] * mul_xyz[..., 3]  # L, N, 16
-        val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+        # 四线性插值
+        tri_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, 16
+        four_xyz = tri_xyz * mul_xyz[..., 3]  # L, N, 16
+        interpolated_val = (four_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+
+        # t上的平滑
+        val_tatb = tri_xyz[...,None] * val
+        val_ta = val_tatb[..., :8, :].sum(dim=-2)  # L, N, F
+        val_tb = val_tatb[..., 8:, :].sum(dim=-2)  # L, N, F
 
         # feature aggregation
-        val = val.permute(1, 0, 2)  # N, L, F
+        interpolated_val = interpolated_val.permute(1, 0, 2)  # N, L, F
+        val_ta = val_ta.permute(1, 0, 2)  # N, L, F
+        val_tb = val_tb.permute(1, 0, 2)  # N, L, F
+
         if self.sum:
             if self.sum_over_features:
-                val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                interpolated_val = interpolated_val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                val_ta = val_ta.sum(dim=-1)  # N, F
+                val_tb = val_tb.sum(dim=-1)  # N, F 
             else:
-                val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+                interpolated_val = interpolated_val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+                val_ta = val_ta.sum(dim=-2)  # N, L
+                val_tb = val_tb.sum(dim=-2)  # N, L
         else:
-            val = val.reshape(-1, L*F)  # N, L*F
+            interpolated_val = interpolated_val.reshape(-1, L*F)  # N, L*F
+
+        smooth_t = torch.cat([val_ta, val_tb], dim=-1)
 
         # feature boosting
         if self.include_input:
-            val = torch.cat([xyz, val], dim=-1)
-        return val
+            interpolated_val = torch.cat([xyz, interpolated_val], dim=-1)
+        return interpolated_val, smooth_t
 
 
 if __name__ == "__main__":
     torch.manual_seed(0)
     xyz = torch.Tensor(
         [
-            [-0.2, 0.4, 0.3, 0.6],
-            [0.3, -0.7, -0.3, -0.1]
+            [0.82, 0.94, 1.03, 1.6],
+            [0.82, 0.94, 1.03, 1.6]
         ]
     )
     #.cuda()

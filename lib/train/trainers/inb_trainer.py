@@ -98,6 +98,12 @@ class NetworkWrapper(nn.Module):
             scalar_stats.update({'offset_loss': offset_loss})
             loss += cfg.resd_loss_weight * offset_loss
 
+        if 'time_smooth_reg' in ret:
+            nf = 1 / (cfg.num_train_frame)**2
+            time_smooth_reg_loss = nf * torch.norm(ret['time_smooth_reg'], dim=1).mean()
+            scalar_stats.update({'time_smooth_reg': time_smooth_reg_loss})
+            loss += cfg.time_smooth_reg_weight * time_smooth_reg_loss
+
         if 'rgb_res' in ret:
             rgb_resd_loss = torch.norm(ret['rgb_res'], dim=2).mean()
             scalar_stats.update({'rgb_resd_loss': rgb_resd_loss})

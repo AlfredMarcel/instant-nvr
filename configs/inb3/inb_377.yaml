@@ -80,7 +80,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 16
+        base_resolution: 32
         b: 1.38
         sum: True
         sum_over_features: True
@@ -90,8 +90,8 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 16
-        b: 1.38
+        base_resolution: 2
+        b: 1.01
         sum: True
         sum_over_features: True
         separate_dense: True
@@ -106,7 +106,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
         sum_over_features: True
@@ -117,7 +117,7 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 20
         base_resolution: 2
-        b: 1.38
+        b: 1.01
         sum: True
         sum_over_features: True
         separate_dense: True
@@ -136,7 +136,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 18
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
         sum_over_features: True
@@ -147,7 +147,7 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 18
         base_resolution: 2
-        b: 1.38
+        b: 1.01
         sum: True
         sum_over_features: True
         separate_dense: True
@@ -161,7 +161,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 15
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
         sum_over_features: True
@@ -172,7 +172,7 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
-        b: 1.38
+        b: 1.01
         sum: True
         sum_over_features: True
         separate_dense: True
@@ -202,7 +202,7 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
-        b: 1.38
+        b: 1.01
         sum: True
         sum_over_features: True
         separate_dense: True
@@ -222,7 +222,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 15
+  epoch: 6
   scheduler:
     type: "exponential"
     gamma: 0.1
@@ -239,7 +239,7 @@ test:
 val:
   frame_sampler_interval: 20
 
-eval_ep: 10
+eval_ep: 6
 save_latest_ep: 5
 save_ep: 400
 ep_iter: 500
@@ -256,7 +256,7 @@ training_stages:
     sample_focus: head
     _start: 2
   - ratio: 0.5
-    sample_focus: ""
+    sample_focus: head
     reg_dist_weight: 1.0
     _start: 4
 
@@ -310,3 +310,6 @@ pair_loss_weight: 10.0
 
 eval_ratio: 0.5
 silent: False
+
+show_train_patch: False
+# prune_using_geo : True

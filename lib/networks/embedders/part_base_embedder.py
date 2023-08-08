@@ -237,23 +237,41 @@ class Embedder(nn.Module):
 
             # off: L, N, dim, sets: offsets_num, dim -> L, N, :, dim and :, :, offsets_num, dim, compute xyz distance to the other corner, mul: multiplier
             mul_xyz = (1 - self.offsets[None, None]) + (2 * self.offsets[None, None] - 1.) * off_xyz[:, :, None]
-            mul_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2] * mul_xyz[..., 3]  # L, N, offsets_num
-            val = (mul_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+            # 四线性插值
+            tri_xyz = mul_xyz[..., 0] * mul_xyz[..., 1] * mul_xyz[..., 2]  # L, N, 16
+            four_xyz = tri_xyz * mul_xyz[..., 3]  # L, N, 16
+            interpolated_val = (four_xyz[..., None] * val).sum(dim=-2)  # trilinear interpolated feature, L, N, F
+
+            # t上的平滑
+            val_tatb = tri_xyz[...,None] * val
+            val_ta = val_tatb[..., :8, :].sum(dim=-2)  # L, N, F
+            val_tb = val_tatb[..., 8:, :].sum(dim=-2)  # L, N, F
 
             # feature aggregation
-            val = val.permute(1, 0, 2)  # N, L, F
+            interpolated_val = interpolated_val.permute(1, 0, 2)  # N, L, F
+            val_ta = val_ta.permute(1, 0, 2)  # N, L, F
+            val_tb = val_tb.permute(1, 0, 2)  # N, L, F
+
             if self.sum:
                 if self.sum_over_features:
-                    val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                    interpolated_val = interpolated_val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                    val_ta = val_ta.sum(dim=-1)  # N, F
+                    val_tb = val_tb.sum(dim=-1)  # N, F 
                 else:
-                    val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+                    interpolated_val = interpolated_val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
+                    val_ta = val_ta.sum(dim=-2)  # N, L
+                    val_tb = val_tb.sum(dim=-2)  # N, L
             else:
-                val = val.reshape(-1, L*F)  # N, L*F
+                interpolated_val = interpolated_val.reshape(-1, L*F)  # N, L*F
+
+            # 计算 time_smooth 损失用，直接传差值
+            # smooth_t = torch.cat([val_ta, val_tb], dim=-1)
+            smooth_t = val_ta - val_tb
 
             # feature boosting
             if self.include_input:
-                val = torch.cat([xyz, val], dim=-1)
-            return val
+                interpolated_val = torch.cat([xyz, interpolated_val], dim=-1)
+            return interpolated_val, smooth_t
 
         else:
             raise NotImplementedError("dim must be 3 or 4")

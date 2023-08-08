@@ -66,14 +66,18 @@ class Renderer:
         # compute the color and density
         ret = self.get_density_color(wpts, viewdir, z_vals, raw_decoder)
 
-        raw = ret['raw'].reshape(n_batch, n_pixel, n_sample, 4)
+        raw = ret['raw'].reshape(n_batch, n_pixel, n_sample, 4+cfg.t_features_dim)
         rgb = raw[..., :3]
         occ = raw[..., 3]
+        t_feat = raw[..., 4:]
         weights, rgb_map, acc_map = volume_rendering(rgb, occ, cfg.random_bg)
         weights = weights.view(-1, *weights.shape[2:])
         rgb_map = rgb_map.view(-1, *rgb_map.shape[2:])
         acc_map = acc_map.view(-1, *acc_map.shape[2:])
         z_vals = z_vals.view(-1, n_sample)
+
+        if cfg.use_time_smooth and self.net.training:
+            ret['time_smooth_reg'] = t_feat.reshape(-1,cfg.t_features_dim)
 
         if cfg.use_pair_reg and self.net.training:
             def reg_decoder(x): return self.net.resd(x, batch)
@@ -106,7 +110,7 @@ class Renderer:
         acc_map = acc_map.view(n_batch, n_pixel)
         # depth_map = depth_map.view(n_batch, n_pixel)
 
-        wpts_raw = ret['raw'].view(n_batch, n_pixel, n_sample, 4)
+        wpts_raw = ret['raw'][...,:4].view(n_batch, n_pixel, n_sample, 4)
 
         ret.update({
             'rgb_map': rgb_map,

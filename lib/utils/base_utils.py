@@ -128,7 +128,7 @@ def merge_dicts(dict_a, dict_b, b_append_key):
 
 # 生成0，1组合的数组
 def generate_array(x):
-    combinations = list(product([0, 1], repeat=x))
+    combinations = sorted(list(product([0, 1], repeat=x)),key=lambda x:x[-1])
     array = np.array(combinations)
     return array
 
