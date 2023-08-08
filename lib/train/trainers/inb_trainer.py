@@ -99,7 +99,8 @@ class NetworkWrapper(nn.Module):
             loss += cfg.resd_loss_weight * offset_loss
 
         if 'time_smooth_reg' in ret:
-            nf = 1 / (cfg.num_train_frame)**2
+            # nf = 1 / (cfg.num_train_frame)**2
+            nf = 1
             time_smooth_reg_loss = nf * torch.norm(ret['time_smooth_reg'], dim=1).mean()
             scalar_stats.update({'time_smooth_reg': time_smooth_reg_loss})
             loss += cfg.time_smooth_reg_weight * time_smooth_reg_loss
