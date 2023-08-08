@@ -307,7 +307,7 @@ frame_interval: 5
 smpl_thresh: 0.05
 exp_name: inb_377
 pair_loss_weight: 10.0
-time_smooth_reg_weight: 10.0
+time_smooth_reg_weight: 300
 
 eval_ratio: 0.5
 silent: False

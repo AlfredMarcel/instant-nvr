@@ -66,8 +66,7 @@ tpose_deformer:
       base_resolution: 4
       b: 1.38
       sum: False
-      sum_over_features: False
-
+      sum_over_features: True
       separate_dense: True
       use_batch_bounds: False
       include_input: True
@@ -81,22 +80,20 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 16
+        base_resolution: 32
         b: 1.38
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 16
-        b: 1.38
+        base_resolution: 2
+        b: 1.2
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
     bbox: [[-1, -1.2, -0.34], [0.8, 0.7, 0.5]]
@@ -109,11 +106,10 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -121,10 +117,9 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 20
         base_resolution: 2
-        b: 1.38
+        b: 1.2
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -141,11 +136,10 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 18
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -153,10 +147,9 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 18
         base_resolution: 2
-        b: 1.38
+        b: 1.2
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
     bbox: [[-0.3, 0.3, -0.3], [0.3, 0.7, 0.3]]
@@ -168,11 +161,10 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 15
-        base_resolution: 2
+        base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -180,10 +172,9 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
-        b: 1.38
+        b: 1.2
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -203,8 +194,7 @@ partnet:
         base_resolution: 2
         b: 1.38
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -212,10 +202,9 @@ partnet:
         n_features_per_level: 8
         log2_hashmap_size: 15
         base_resolution: 2
-        b: 1.38
+        b: 1.2
         sum: True
-        sum_over_features: False
-
+        sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
     color_network:
@@ -233,7 +222,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 20
+  epoch: 6
   scheduler:
     type: "exponential"
     gamma: 0.1
@@ -250,14 +239,14 @@ test:
 val:
   frame_sampler_interval: 20
 
-eval_ep: 10
+eval_ep: 6
 save_latest_ep: 5
 save_ep: 400
 ep_iter: 500
 vis_ep: 100
 
 use_lpips: True
-use_time_embedder: True
+use_time_smooth: True
 use_reg_distortion: True
 
 training_stages:
@@ -267,7 +256,7 @@ training_stages:
     sample_focus: head
     _start: 2
   - ratio: 0.5
-    sample_focus: ""
+    sample_focus: head
     reg_dist_weight: 1.0
     _start: 4
 
@@ -318,6 +307,11 @@ frame_interval: 5
 smpl_thresh: 0.05
 exp_name: inb_377
 pair_loss_weight: 10.0
+time_smooth_reg_weight: 600
 
 eval_ratio: 0.5
 silent: False
+
+show_train_patch: False
+t_features_dim : 16
+# prune_using_geo : True
