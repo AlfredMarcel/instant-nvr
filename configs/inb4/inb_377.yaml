@@ -78,9 +78,9 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 10
         log2_hashmap_size: 20
-        base_resolution: 8
+        base_resolution: 16
         b: 1.38
         sum: True
         sum_over_features: True
@@ -88,7 +88,7 @@ partnet:
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 6
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
@@ -105,7 +105,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 10
         log2_hashmap_size: 20
         base_resolution: 8
         b: 1.38
@@ -115,7 +115,7 @@ partnet:
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 6
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
@@ -136,7 +136,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 10
         log2_hashmap_size: 18
         base_resolution: 8
         b: 1.38
@@ -146,7 +146,7 @@ partnet:
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 6
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.2
@@ -162,7 +162,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 10
         log2_hashmap_size: 15
         base_resolution: 8
         b: 1.38
@@ -172,7 +172,7 @@ partnet:
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 6
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.2
@@ -193,7 +193,7 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 10
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.38
@@ -203,7 +203,7 @@ partnet:
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 6
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.2

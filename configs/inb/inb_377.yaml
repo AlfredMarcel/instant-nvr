@@ -80,7 +80,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 8
+        base_resolution: 16
         b: 1.38
         sum: True
         sum_over_features: True
