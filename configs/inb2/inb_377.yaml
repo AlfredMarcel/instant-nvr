@@ -69,7 +69,7 @@ tpose_deformer:
       sum_over_features: True
       separate_dense: True
       use_batch_bounds: False
-      include_input: True
+      include_input: False
 
 partnet:
   body:
@@ -80,7 +80,7 @@ partnet:
         n_levels: 16
         n_features_per_level: 8
         log2_hashmap_size: 20
-        base_resolution: 32
+        base_resolution: 8
         b: 1.38
         sum: True
         sum_over_features: True
@@ -96,6 +96,7 @@ partnet:
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+        include_input: False
     bbox: [[-1, -1.2, -0.34], [0.8, 0.7, 0.5]]
     # pretrained: 'exps/inb/inb_377_body1/trained_model/body.pth'
   leg:
@@ -122,6 +123,7 @@ partnet:
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+        include_input: False
     color_network:
       module: "lib.networks.bw_deform.part_base_network"
       kwargs:
@@ -152,6 +154,7 @@ partnet:
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+        include_input: False
     bbox: [[-0.3, 0.3, -0.3], [0.3, 0.7, 0.3]]
   larm:
     module: "lib.networks.bw_deform.part_base_network"
@@ -170,13 +173,14 @@ partnet:
       kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
-        log2_hashmap_size: 15
+        log2_hashmap_size: 16
         base_resolution: 2
         b: 1.2
         sum: True
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+        include_input: False
     color_network:
       module: "lib.networks.bw_deform.part_base_network"
       kwargs:
@@ -200,13 +204,14 @@ partnet:
       kwargs_4d:
         n_levels: 16
         n_features_per_level: 8
-        log2_hashmap_size: 15
+        log2_hashmap_size: 16
         base_resolution: 2
         b: 1.2
         sum: True
         sum_over_features: True
         separate_dense: True
         use_batch_bounds: True
+        include_input: False
     color_network:
       module: "lib.networks.bw_deform.part_base_network"
       kwargs:
@@ -307,7 +312,7 @@ frame_interval: 5
 smpl_thresh: 0.05
 exp_name: inb_377
 pair_loss_weight: 10.0
-time_smooth_reg_weight: 300
+time_smooth_reg_weight: 400
 
 eval_ratio: 0.5
 silent: False
