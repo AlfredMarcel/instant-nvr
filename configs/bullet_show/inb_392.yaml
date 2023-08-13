@@ -1,4 +1,4 @@
-parent_cfg: "configs/inb/inb_377.yaml"
+parent_cfg: "configs/bullet_show/inb_377.yaml"
 
 train_dataset:
   data_root: "data/zju-mocap/my_392"

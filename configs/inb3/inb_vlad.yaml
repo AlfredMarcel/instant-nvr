@@ -1,4 +1,4 @@
-parent_cfg: "configs/inb/inb_377.yaml"
+parent_cfg: "configs/inb3/inb_377.yaml"
 
 train_dataset:
   data_root: "data/monocap/vlad_images1011"
