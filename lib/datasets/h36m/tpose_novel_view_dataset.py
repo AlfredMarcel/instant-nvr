@@ -23,15 +23,18 @@ class Dataset(data.Dataset):
         self.human = human
         self.split = split
 
+        # 数据集动作序列长度
+        self.dataset_length = {"my_377":617, "my_386":646, "my_387":654, "my_394":859, "my_393":658, "my_392":556}
+
         annots = np.load(ann_file, allow_pickle=True).item()
         self.cams = annots['cams']
 
-        test_view = [3]
+        test_view = [cfg.novel_view]
         view = cfg.training_view if split == 'train' else test_view
         self.num_cams = len(view)
         K, RT = render_utils.load_cam(ann_file)
-        center = np.array([0., 0., 5.])
-        render_w2c = render_utils.gen_path(RT, center)
+        # center = np.array([0., 0., 5.])
+        render_w2c = render_utils.gen_path(RT)
 
         i = cfg.begin_ith_frame
         self.ims = np.array([
@@ -59,6 +62,10 @@ class Dataset(data.Dataset):
         if cfg.use_knn:
             faces, weights, joints, parents, parts = self.load_smpl()
             self.meta_smpl = {'faces': faces, 'weights': weights, 'joints': joints, 'parents': parents, 'parts': parts}
+
+        # 子弹时间帧
+        self.bullet_frame = self.__len__()//2
+        self.bullet_frame_length = cfg.num_render_views
 
     def load_smpl(self):
         smpl_meta_root = cfg.smpl_meta
@@ -157,7 +164,7 @@ class Dataset(data.Dataset):
 
     def __getitem__(self, index):
         view_index = index
-        breakpoint()
+        # breakpoint()
         if cfg.render_frame == -1:
             latent_index = index
         else:
@@ -168,9 +175,6 @@ class Dataset(data.Dataset):
 
         # frame_index = cfg.begin_ith_frame + (1 - 1) * cfg.frame_interval
         # frame_index = cfg.begin_ith_frame + 0 * cfg.frame_interval
-        frame_index = 0
-        cam_index = index % len(self.render_w2c)
-
 
         # cam_index = index % len(self.render_w2c)
         # cam_index = latent_index
@@ -182,6 +186,16 @@ class Dataset(data.Dataset):
         tbw = np.load(os.path.join(self.lbs_root, 'bigpose_bw.npy'))
         tbw = tbw.astype(np.float32)
 
+        cam_index = 0
+
+        if index < self.bullet_frame:
+            frame_index = index 
+        elif index < self.bullet_frame + self.bullet_frame_length:
+            frame_index = self.bullet_frame
+            cam_index = index - self.bullet_frame
+        else:
+            frame_index = index - self.bullet_frame_length
+
         wpts, ppts, A, pbw, Rh, Th, big_A = self.prepare_input(frame_index)
 
         pbounds = if_nerf_dutils.get_bounds(ppts)
@@ -190,6 +204,7 @@ class Dataset(data.Dataset):
         # msks = self.get_mask(frame_index)
 
         # reduce the image resolution by ratio
+        # 推理过程中，image内容不需要，只需要image的分辨率
         img_path = os.path.join(self.data_root, self.ims[0][0])
         img = imageio.imread(img_path)
         H, W = img.shape[:2]
@@ -295,4 +310,5 @@ class Dataset(data.Dataset):
     def __len__(self):
         # return len(self.render_w2c)
         # return cfg.num_train_frame
-        return cfg.num_latent_code
+        return len(self.render_w2c) + self.dataset_length[self.human]
+        # return cfg.num_latent_code

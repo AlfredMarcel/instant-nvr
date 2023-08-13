@@ -282,7 +282,7 @@ def run_other(type):
                  resume=cfg.resume,
                  epoch=cfg.test.epoch,
                  strict=False)
-    network.train()
+    network.eval()
 
     data_loader = make_data_loader(cfg, split=type)
     renderer = make_renderer(cfg, network, split=type)

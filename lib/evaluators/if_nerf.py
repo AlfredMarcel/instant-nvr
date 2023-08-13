@@ -12,6 +12,7 @@ except:
 
 from lib.config import cfg
 from lib.utils.blend_utils import partnames
+from lib.utils.img_utils import save_video
 
 
 class Evaluator:
@@ -104,6 +105,7 @@ class Evaluator:
                 if not os.path.exists(result_dir):
                     os.mkdir(result_dir)
                 cv2.imwrite('{}/frame{:04d}_view{:04d}.png'.format(result_dir, frame_index, view_index), (img_pred[..., [2, 1, 0]] * 255))
+                # print('{}/frame{:04d}_view{:04d}.png'.format(result_dir, frame_index, view_index))
                 cv2.imwrite('{}/frame{:04d}_view{:04d}_gt.png'.format(result_dir, frame_index, view_index), (img_gt[..., [2, 1, 0]] * 255))
 
             if cfg.dry_run:
@@ -121,7 +123,7 @@ class Evaluator:
             )[0].detach().cpu().numpy()
             self.lpips.append(lpips)
 
-            breakpoint()
+            # breakpoint()
             # ssim = self.ssim_metric(rgb_pred, rgb_gt, batch)
             ssim = compare_ssim(img_pred, img_gt, channel_axis=2)
             self.ssim.append(ssim)
@@ -154,6 +156,10 @@ class Evaluator:
         print(
             colored('the results are saved at {}'.format(result_dir),
                     'yellow'))
+
+        if cfg.test_show_video:
+            # 输出视频
+            save_video(result_dir)
 
         if epoch == -1:
             result_path = os.path.join(cfg.result_dir, 'metrics.npy')
