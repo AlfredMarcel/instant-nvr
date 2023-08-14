@@ -311,8 +311,6 @@ frame_interval: 5
 
 smpl_thresh: 0.05
 exp_name: inb_377
-pair_loss_weight: 10.0
-time_smooth_reg_weight: 400
 
 eval_ratio: 0.5
 silent: False
@@ -320,3 +318,13 @@ silent: False
 show_train_patch: False
 t_features_dim : 16
 # prune_using_geo : True
+
+# 调整损失权重
+img_loss_weight: 1.0
+lpips_loss_weight: 5.0
+resd_loss_weight: 0.1
+reg_dist_weight: 0.1
+pair_loss_weight: 10.0
+time_smooth_reg_weight: 400
+
+

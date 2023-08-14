@@ -19,7 +19,7 @@ cfg.show_train_patches = False
 # cfg.ps = [1, 19349663, 83492791]
 cfg.ps = [1, 19349663, 51471207, 83492791]
 
-cfg.fast_eval = False
+cfg.fast_eval = True
 cfg.eval_ratio = -1.0
 cfg.multi_stream = False
 cfg.latent_code_dim = 8

@@ -236,7 +236,8 @@ class NetworkWrapper(nn.Module):
                 if cfg.use_lpips:
                     img_lpips_loss = self.perceptual_loss(img_pred.permute(2, 0, 1)[None], img_gt.permute(2, 0, 1)[None])
                     scalar_stats.update({'lpips_loss': img_lpips_loss})
-                    loss += img_lpips_loss
+                    loss += cfg.lpips_loss_weight * img_lpips_loss
+                    loss += cfg.img_loss_weight * img_loss
                 elif cfg.use_ssim:
                     img_ssim_loss = 1 - self.ssim_loss(img_pred.permute(2, 0, 1)[None], img_gt.permute(2, 0, 1)[None])
                     scalar_stats.update({'ssim_loss': img_ssim_loss})

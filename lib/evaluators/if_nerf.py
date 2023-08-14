@@ -157,9 +157,9 @@ class Evaluator:
             colored('the results are saved at {}'.format(result_dir),
                     'yellow'))
 
-        if cfg.test_show_video:
-            # 输出视频
-            save_video(result_dir)
+        # if cfg.test_show_video:
+        #     # 输出视频
+        #     save_video(result_dir)
 
         if epoch == -1:
             result_path = os.path.join(cfg.result_dir, 'metrics.npy')
