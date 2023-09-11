@@ -10,7 +10,8 @@ from typing import *
 # from hash_embedder import HashEmbedder
 from lib.networks.make_network import make_deformer, make_part_network
 from termcolor import cprint
-
+from lib.utils.render_utils import save_point_cloud
+from lib.utils.base_utils import get_time
 
 def gradient(input: torch.Tensor, output: torch.Tensor, d_out: torch.Tensor = None, create_graph: bool = False, retain_graph: bool = False):
     if d_out is not None:
@@ -79,12 +80,17 @@ class Network(GradModule):
         pose_pts: n_batch, n_point, 3
         """
         # initial blend weights of points at i
-        # save_point_cloud(pose_pts.squeeze()[:64], "debug/pose_pts_{}.ply".format(get_time()))
+        # tmp = pose_pts.squeeze()[:64].cpu().numpy()
+        # save_point_cloud(tmp, "debug/pose_pts_{}.ply".format(get_time()))
         B, N, _ = pose_pts.shape
         assert B == 1
         with torch.no_grad():
             assert batch['ppts'].shape[0] == 1
             # init_pbw = pts_knn_blend_weights_multiassign(pose_pts, batch['ppts'], batch['weights'], batch['parts'])  # (B, N, P, 24)
+
+            # 使用 skinning_weights_network 预测蒙皮权重，只需要将网络输出的体积表示再做wrap的结果，替代 batch['part_pbw'][0] 即可
+            # 并在此处将预测权重与 数据集中计算出的值 添加一个蒙皮权重 Loss  (ActorNeRF)
+
             init_pbw = pts_knn_blend_weights_multiassign_batch(pose_pts, batch['part_pts'][0], batch['part_pbw'][0], batch['lengths2'][0])  # (B, N, P, 24)
             pred_pbw, pnorm = init_pbw[..., :24], init_pbw[..., 24]
             pflag = pnorm < cfg.smpl_thresh  # (B, N, P)
@@ -111,13 +117,15 @@ class Network(GradModule):
 
         resd = self.tpose_deformer(init_bigpose, batch, flag=pflag)
         tpose = init_bigpose + resd
+        # tmp = tpose.squeeze()[:64].detach().cpu().numpy()
 
         tpose = tpose.reshape(B, N, NUM_PARTS, 3)
         bigpose = init_bigpose.reshape(B, N, NUM_PARTS, 3)
         pflag = pflag.reshape(B, N, NUM_PARTS)
         resd = resd.reshape(B, N, NUM_PARTS, 3)
 
-        # save_point_cloud(tpose.squeeze()[:64], "debug/tpose_pts_{}.ply".format(get_time()))
+        # print(type(tmp))
+        # save_point_cloud(tmp, "debug/tpose_pts_{}.ply".format(get_time()))
         return tpose, bigpose, tpose_dirs, resd, pflag, init_bigpose, pnorm
 
     def resd(self, tpts: torch.Tensor, batch):
@@ -128,9 +136,10 @@ class Network(GradModule):
         # transform points from the world space to the pose space
         wpts = wpts[None]  # B, N, 3, fake batch dimension
         viewdir = viewdir[None]  # B, N, 3
+
         pose_pts = world_points_to_pose_points(wpts, batch['R'], batch['Th'])
         pose_dirs = world_dirs_to_pose_dirs(viewdir, batch['R'])
-
+        # 筛去插值后的pbw最后一维<smpl_thresh的点
         with torch.no_grad():
             pnorm = pts_sample_blend_weights(pose_pts, batch['pbw'][..., -1:], batch['pbounds']) 
             pnorm = pnorm[0, -1]  # B, 25, N -> N,

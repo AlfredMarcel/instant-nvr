@@ -2,6 +2,7 @@ import numpy as np
 import json
 import os
 import cv2
+import open3d as o3d
 
 from lib.config import cfg
 
@@ -168,3 +169,16 @@ def save_img(img, frame_root, index, mask_at_box):
 
     print("saved frame %d" % index)
     cv2.imwrite(os.path.join(frame_root, '%d.jpg' % index), img_pred * 255)
+
+# Use vis3d to visualize camera and point cloud
+def save_point_cloud(point_cloud, save_path):
+    """
+    Parameters:
+    ------------
+    point_cloud : np.array
+        [N,3]
+    save_path : str
+    """
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(point_cloud)
+    o3d.io.write_point_cloud(save_path, pcd)

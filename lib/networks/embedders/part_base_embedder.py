@@ -96,6 +96,10 @@ class Embedder(nn.Module):
         if self.sum:
             if self.sum_over_features:
                 self.out_dim += self.n_levels
+            elif cfg.multipy_over_features:
+                self.out_dim += self.n_levels
+            elif cfg.multipy_over_levels:
+                self.out_dim += self.f
             else:
                 self.out_dim += self.f
         else:
@@ -175,6 +179,10 @@ class Embedder(nn.Module):
             if self.sum:
                 if self.sum_over_features:
                     val = val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
+                elif cfg.multipy_over_features:
+                    val = val.prod(dim=-1)
+                elif cfg.multipy_over_levels:
+                    val = val.prod(dim=-2)
                 else:
                     val = val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
             else:
@@ -255,14 +263,21 @@ class Embedder(nn.Module):
             if self.sum:
                 if self.sum_over_features:
                     interpolated_val = interpolated_val.sum(dim=-1)  # N, F, NOTE: sum over features seems to be producing better results...
-                    val_ta = val_ta.sum(dim=-1)  # N, F
-                    val_tb = val_tb.sum(dim=-1)  # N, F 
+                    # val_ta = val_ta.sum(dim=-1)  # N, F
+                    # val_tb = val_tb.sum(dim=-1)  # N, F 
+                elif cfg.multipy_over_features:
+                    interpolated_val = interpolated_val.prod(dim=-1) # N, F
+                elif cfg.multipy_over_levels:
+                    interpolated_val = interpolated_val.prod(dim=-2) # N, L
                 else:
                     interpolated_val = interpolated_val.sum(dim=-2)  # N, L, NOTE: sum over features seems to be producing better results...
-                    val_ta = val_ta.sum(dim=-2)  # N, L
-                    val_tb = val_tb.sum(dim=-2)  # N, L
+                    # val_ta = val_ta.sum(dim=-2)  # N, L
+                    # val_tb = val_tb.sum(dim=-2)  # N, L
             else:
                 interpolated_val = interpolated_val.reshape(-1, L*F)  # N, L*F
+            
+            val_ta = val_ta.reshape(-1, L*F)  # N, L*F
+            val_tb = val_tb.reshape(-1, L*F)  # N, L*F
 
             # 计算 time_smooth 损失用，直接传差值
             # smooth_t = torch.cat([val_ta, val_tb], dim=-1)

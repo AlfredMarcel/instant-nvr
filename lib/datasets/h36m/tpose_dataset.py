@@ -15,7 +15,8 @@ from plyfile import PlyData
 import os.path as osp
 from lib.utils.base_utils import project
 from lib.utils.blend_utils import NUM_PARTS, part_bw_map, partnames
-
+from lib.utils.render_utils import save_point_cloud
+from lib.utils.base_utils import get_time
 
 class Dataset(data.Dataset):
     def __init__(self, data_root, human, ann_file, split):
@@ -363,6 +364,8 @@ class Dataset(data.Dataset):
         else:
             vertices_path = os.path.join(self.lbs_root, 'tvertices.npy')
         tpose = np.load(vertices_path).astype(np.float32)
+        # print(type(tpose))
+        # print(tpose.shape)
         # save_point_cloud(tpose, 'debug/tpose_{}.ply'.format(get_time()))
         tbounds = if_nerf_dutils.get_bounds(tpose)
         if cfg.bigpose:

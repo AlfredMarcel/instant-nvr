@@ -83,7 +83,7 @@ partnet:
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -93,7 +93,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -110,7 +110,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -120,7 +120,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -141,7 +141,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -151,7 +151,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -167,7 +167,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -177,7 +177,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -198,7 +198,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -208,7 +208,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -316,12 +316,12 @@ eval_ratio: 0.5
 silent: False
 
 show_train_patch: False
-t_features_dim : 16
+t_features_dim : 128
 # prune_using_geo : True
 
 # 调整损失权重
-img_loss_weight: 10.0
-lpips_loss_weight: 10.0
+img_loss_weight: 1.0
+lpips_loss_weight: 20.0
 resd_loss_weight: 0.1
 reg_dist_weight: 0.1
 pair_loss_weight: 10.0

@@ -35,3 +35,4 @@ smpl_thresh: 0.05
 exp_name: inb_386
 pair_loss_weight: 1e-6
 resd_loss_weight: 1e-2
+

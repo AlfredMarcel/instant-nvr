@@ -78,22 +78,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 20
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -105,22 +105,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 20
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -136,22 +136,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 18
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -162,22 +162,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 15
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -193,22 +193,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 15
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -316,15 +316,19 @@ eval_ratio: 0.5
 silent: False
 
 show_train_patch: False
-t_features_dim : 16
+t_features_dim : 64
 # prune_using_geo : True
 
 # 调整损失权重
-img_loss_weight: 10.0
+img_loss_weight: 1.0
 lpips_loss_weight: 20.0
 resd_loss_weight: 0.1
 reg_dist_weight: 0.1
 pair_loss_weight: 10.0
 time_smooth_reg_weight: 400
 
+# 合并feature方式
+# sum = True, sum_over_feature = False  才起作用
 
+multipy_over_features : True
+multipy_over_levels: False
