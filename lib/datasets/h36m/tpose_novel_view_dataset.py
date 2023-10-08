@@ -6,11 +6,14 @@ import json
 import os
 import imageio
 import cv2
+import pickle
 from lib.config import cfg
 from lib.utils.if_nerf import if_nerf_data_utils as if_nerf_dutils
 from plyfile import PlyData
 from lib.utils import render_utils
 from lib.utils.blend_utils import NUM_PARTS, part_bw_map, partnames
+from lib.utils.body_utils import approx_gaussian_bone_volumes, get_canonical_global_tfms
+
 
 SHOW_FRAME = 100
 
@@ -22,6 +25,15 @@ class Dataset(data.Dataset):
         self.data_root = data_root
         self.human = human
         self.split = split
+
+        #==============================================================
+        # 高斯近似的 T-pose 权重先验
+        self.canonical_joints, self.canonical_bbox = self.load_canonical_joints(human)
+        # 
+        self.motion_weights_priors = approx_gaussian_bone_volumes(self.canonical_joints,self.canonical_bbox['min_xyz'],self.canonical_bbox['max_xyz'],
+                                                                   grid_size=cfg.mweight_volume.volume_size).astype('float32')
+        #==============================================================
+
 
         # 数据集动作序列长度
         self.dataset_length = {"my_377":617, "my_386":646, "my_387":654, "my_394":859, "my_393":658, "my_392":556}
@@ -82,6 +94,27 @@ class Dataset(data.Dataset):
                 parts[weights_max == bwid] = pid
 
         return faces, weights, joints, parents, parts
+
+    def load_canonical_joints(self, human):
+        tab = {"my_377":"canonical_joints_377.pkl","my_386":"canonical_joints_386.pkl","my_394":"canonical_joints_394.pkl","my_387":"canonical_joints_387.pkl","my_392":"canonical_joints_392.pkl","my_393":"canonical_joints_393.pkl"}
+        path = os.path.join("canonical_joints/", tab[human])
+        with open(path, 'rb') as f:
+            cl_joint_data = pickle.load(f)
+            canonical_joints = cl_joint_data['joints_{}'.format(human[-3:])]
+            canonical_bbox = self.skeleton_to_bbox(canonical_joints)
+        return canonical_joints, canonical_bbox
+
+    @staticmethod
+    def skeleton_to_bbox(skeleton):
+        min_xyz = np.min(skeleton, axis=0) - cfg.bbox_overlap
+        min_xyz.astype(np.float32)
+        max_xyz = np.max(skeleton, axis=0) + cfg.bbox_overlap
+        max_xyz.astype(np.float32)
+
+        return {
+            'min_xyz': min_xyz,
+            'max_xyz': max_xyz
+        }
 
     def prepare_input(self, i):
         if self.human in ['CoreView_313', 'CoreView_315']:
@@ -304,6 +337,12 @@ class Dataset(data.Dataset):
                 'lengths2': lengths2,
                 'bounds': bounds,
             })
+
+        ret.update({'motion_weights_priors': self.motion_weights_priors.copy()})
+        ret.update({'cnl_bbox_min_xyz': self.canonical_bbox['min_xyz'],
+                    'cnl_bbox_max_xyz': self.canonical_bbox['max_xyz'],
+                    'cnl_bbox_scale_xyz': (2.0 / (self.canonical_bbox['max_xyz'] - self.canonical_bbox['min_xyz'])).astype(np.float32),
+                    })
 
         return ret
 

@@ -748,6 +748,7 @@ def sample_blend_closest_points(src: torch.Tensor, ref: torch.Tensor, values: to
     weights /= (weights.sum(dim=-1, keepdim=True) + eps)
     dists = torch.einsum('ijk,ijk->ij', dists, weights)
     if values is None:
+        B, N1, K = vert_ids.shape
         return dists.view(B, N1, 1)
     # sampled *= weights[..., None]  # augment weight in last dim for bones # written separatedly to avoid OOM
     # sampled = sampled.sum(dim=-2)  # sum over second to last for weighted bw
@@ -823,3 +824,13 @@ def pts_knn_blend_weights_multiassign_batch(pose_pts, pose_verts, pose_bw, lengt
     multi_bw = torch.cat((sampled_bw, dist), dim=-1)
     multi_bw = multi_bw.permute(1, 0, 2)[None]  # P, N, 25 -> (1, N, P, 25)
     return multi_bw
+
+def pts_knn_dists_multiassign_batch(pose_pts, pose_verts, pose_bw, lengths2):
+    # return (1, N, P, 25)
+    assert pose_bw==None
+    
+    P = NUM_PARTS
+    pose = pose_pts.expand(P, -1, -1)
+
+    dist = sample_blend_closest_points(pose, pose_verts, pose_bw, lengths2=lengths2)
+    return dist

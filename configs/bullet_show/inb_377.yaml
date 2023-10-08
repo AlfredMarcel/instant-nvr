@@ -10,6 +10,7 @@ prune_dataset_module: "lib.datasets.h36m.tpose_dataset"
 
 network_module: "lib.networks.bw_deform.inb_part_network_multiassign"
 renderer_module: "lib.networks.renderer.inb_renderer"
+skinning_network_module: "lib.networks.bw_deform.deconv_vol_decoder"
 
 renderer_vis_module: "lib.networks.renderer.inb_renderer"
 trainer_module: "lib.train.trainers.inb_trainer"
@@ -23,6 +24,12 @@ network:
   color:
     d_hidden: 64
     n_layers: 2
+
+mweight_volume:
+  embedding_size: 256
+  volume_size: 32
+  dst_voxel_size: 0.0625
+  total_bones: 24
 
 viewdir_embedder:
   module: "lib.networks.embedders.freq_embedder"
@@ -78,22 +85,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 20
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -105,22 +112,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 20
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 20
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -136,22 +143,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 18
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 18
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -162,22 +169,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 15
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -193,22 +200,22 @@ partnet:
       module: "lib.networks.embedders.part_base_embedder"
       kwargs:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 12
         log2_hashmap_size: 15
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
         n_levels: 16
-        n_features_per_level: 8
+        n_features_per_level: 4
         log2_hashmap_size: 15
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -227,7 +234,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 6
+  epoch: 10
   scheduler:
     type: "exponential"
     gamma: 0.1
@@ -237,9 +244,9 @@ train:
 test:
   sampler: "FrameSampler"
   batch_size: 1
-  # frame_sampler_interval: 10
+  frame_sampler_interval: 10
   collator: ""
-  frame_sampler_interval: 1
+  frame_sampler_interval: 6
 
 val:
   frame_sampler_interval: 20
@@ -307,22 +314,28 @@ training_view: [4]
 test_view: []
 begin_ith_frame: 0
 num_train_frame: 100
-frame_interval: 1
+frame_interval: 5
 
 smpl_thresh: 0.05
 exp_name: inb_377
-pair_loss_weight: 10.0
-time_smooth_reg_weight: 400
 
 eval_ratio: 0.5
 silent: False
 
 show_train_patch: False
-t_features_dim : 16
+t_features_dim : 64
 # prune_using_geo : True
+
+# 合并feature方式
+# sum = True, sum_over_feature = False  才起作用
+
+multipy_over_features : False
+multipy_over_levels: False
 
 test_show_video : True
 num_render_views: 100
 
 # 可视化脚本  新视角
 novel_view : 11
+
+render_canonical : True

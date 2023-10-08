@@ -2,6 +2,7 @@ import time
 import datetime
 import torch
 import tqdm
+import os
 from torch.nn import DataParallel
 from lib.config import cfg
 from lib.networks.renderer.make_renderer import make_renderer
@@ -33,6 +34,34 @@ class Trainer(object):
             'begin': 0,
             'end': 0
         }
+        
+        # load 预训练的 skinning network
+        if cfg.resume and Trainer.ckpt_exists(cfg.load_net)==False:
+            raise NotImplementedError(f'pretrained model {cfg.load_net}.tar not exiting')
+        
+        if cfg.resume and Trainer.ckpt_exists(cfg.load_net):
+            self.load_ckpt(f'{cfg.load_net}')
+
+    @staticmethod
+    def get_ckpt_path(name):
+        return os.path.join(cfg.load_dir, f'{name}.tar')
+
+    @staticmethod
+    def ckpt_exists(name):
+        return os.path.exists(Trainer.get_ckpt_path(name))
+
+    def load_ckpt(self, name):
+        path = Trainer.get_ckpt_path(name)
+        print(f"Load checkpoint from {path} ...")
+        
+        ckpt = torch.load(path, map_location='cuda:0')
+        # 加载预训练模型的 skinning network 权重
+        mweight_dict = {}
+        for k, v in ckpt['network'].items():
+            if 'mweight' == k[:7]:
+                mweight_dict['net.'+k] = v
+        self.network.load_state_dict(mweight_dict, strict=False)
+        
 
     def reduce_loss_stats(self, loss_stats):
         reduced_losses = {k: torch.mean(v) for k, v in loss_stats.items()}

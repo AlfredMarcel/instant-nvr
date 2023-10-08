@@ -13,10 +13,10 @@ export GPUS=$1
 en=$2
 file="metrics/${en}.txt"
 
-for name in 377 386 387 392 393 394 
+for name in 377 386 387 392 393 394
 do
     python train_net.py --cfg_file configs/inb/inb_${name}.yaml exp_name ${en}_${name} gpus ${GPUS} silent False
     python run.py --type evaluate --cfg_file configs/inb/inb_${name}.yaml exp_name ${en}_${name} gpus ${GPUS} | grep -E 'mse:|psnr:|ssim:|lpips:'| awk -F ":" '{printf "%s,",$2}'  >> ${file} 
-    python run.py --type bullet --cfg_file configs/bullet_show/inb_${name}.yaml exp_name ${en}_${name} gpus ${GPUS}
+    # python run.py --type bullet --cfg_file configs/bullet_show/inb_${name}.yaml exp_name ${en}_${name} gpus ${GPUS}
 done
 

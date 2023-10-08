@@ -10,6 +10,7 @@ prune_dataset_module: "lib.datasets.h36m.tpose_dataset"
 
 network_module: "lib.networks.bw_deform.inb_part_network_multiassign"
 renderer_module: "lib.networks.renderer.inb_renderer"
+skinning_network_module: "lib.networks.bw_deform.deconv_vol_decoder"
 
 renderer_vis_module: "lib.networks.renderer.inb_renderer"
 trainer_module: "lib.train.trainers.inb_trainer"
@@ -23,6 +24,12 @@ network:
   color:
     d_hidden: 64
     n_layers: 2
+
+mweight_volume:
+  embedding_size: 256
+  volume_size: 32
+  dst_voxel_size: 0.0625
+  total_bones: 24
 
 viewdir_embedder:
   module: "lib.networks.embedders.freq_embedder"
@@ -83,7 +90,7 @@ partnet:
         base_resolution: 16
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -93,7 +100,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -110,7 +117,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -120,7 +127,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -141,7 +148,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -151,7 +158,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -167,7 +174,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -177,7 +184,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -198,7 +205,7 @@ partnet:
         base_resolution: 8
         b: 1.38
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
       kwargs_4d:
@@ -208,7 +215,7 @@ partnet:
         base_resolution: 2
         b: 1.2
         sum: True
-        sum_over_features: True
+        sum_over_features: False
         separate_dense: True
         use_batch_bounds: True
         include_input: False
@@ -227,7 +234,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 6
+  epoch: 10
   scheduler:
     type: "exponential"
     gamma: 0.1
@@ -325,6 +332,7 @@ lpips_loss_weight: 20.0
 resd_loss_weight: 0.1
 reg_dist_weight: 0.1
 pair_loss_weight: 10.0
+skinning_loss_weight: 400
 time_smooth_reg_weight: 400
 
 # 合并feature方式
@@ -332,3 +340,10 @@ time_smooth_reg_weight: 400
 
 multipy_over_features : False
 multipy_over_levels: False
+
+# 预训练模型
+resume : True
+load_net : "latest"
+load_dir : "priors"
+
+fast_eval : False

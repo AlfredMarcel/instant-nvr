@@ -8,7 +8,7 @@ from .. import embedder
 from lib.utils import net_utils
 from typing import *
 # from hash_embedder import HashEmbedder
-from lib.networks.make_network import make_deformer, make_part_network
+from lib.networks.make_network import make_deformer, make_part_network, make_skinning_network
 from termcolor import cprint
 from lib.utils.render_utils import save_point_cloud
 from lib.utils.base_utils import get_time
@@ -72,8 +72,58 @@ class Network(GradModule):
         if not cfg.part_deform:
             self.tpose_deformer = make_deformer(cfg)
         self.tpose_human = TPoseHuman()
+        self.mweight_vol_decoder = make_skinning_network(cfg)
 
         assert cfg.use_knn
+    
+    def sample_mweights(self, pose_pts, pose_dirs, batch):
+        # 返回：1.变换后的采样点, 2. 变换后的采样方向 3.采样点在pose空间下的蒙皮权重(算skinning loss)
+        
+        # 初始化 skinning_network
+        # [25,32,32,32]
+        motion_weights_priors = batch['motion_weights_priors']
+        motion_weights_vol = self.mweight_vol_decoder(motion_weights_priors)[0]
+
+        pose_pts = pose_pts.reshape(-1,3)
+        pose_dirs = pose_dirs.reshape(-1,3)
+        # 暂不考虑skinning网络预测的 点到smpl距离
+        motion_weights = motion_weights_vol[:-1]
+
+        gltms = torch.inverse(batch['A']+1e-12)
+        cnl_tms = torch.matmul(batch['big_A'], gltms)
+        motion_scale_Rs = cnl_tms[:, :, :3, :3][0]
+        motion_Ts = cnl_tms[:, :, :3, 3][0]
+
+        weights_list = []
+        for i in range(motion_weights.size(0)):
+            pos = torch.matmul(motion_scale_Rs[i,:,:], pose_pts.T).T + motion_Ts[i,:]
+            pos = (pos - batch['cnl_bbox_min_xyz'])* batch['cnl_bbox_scale_xyz'] - 1.0
+            weights = F.grid_sample(input=motion_weights[None, i:i+1, :,:,:],
+                                    grid=pos[None,None,None,:,:].float(),
+                                    padding_mode='zeros',
+                                    align_corners=True )
+            weights = weights[0,0,0,0,:,None]
+            weights_list.append(weights)
+        bw_weights = torch.cat(weights_list, dim=-1)
+        total_bases = bw_weights.shape[-1]
+
+        bw_weights_sum = torch.sum(bw_weights, dim=-1, keepdim=True)
+
+        pts_motion_fields = []
+        dirs_motion_fields = []
+        for i in range(total_bases):
+            pos = torch.matmul(motion_scale_Rs[i,:,:], pose_pts.T).T + motion_Ts[i,:]
+            weighted_pos = bw_weights[:,i:i+1] * pos
+            pts_motion_fields.append(weighted_pos)
+
+            dir = torch.matmul(motion_scale_Rs[i,:,:], pose_dirs.T).T
+            weighted_dir = bw_weights[:,i:i+1] * dir
+            dirs_motion_fields.append(weighted_dir)
+        
+        x_skel = torch.sum(torch.stack(pts_motion_fields, dim=0), dim=0)/bw_weights_sum.clamp(min=0.0001)
+        x_dir = torch.sum(torch.stack(dirs_motion_fields, dim=0), dim=0)/bw_weights_sum.clamp(min=0.0001)
+        
+        return x_skel[None,:,:], x_dir[None,:,:], bw_weights
 
     def pose_points_to_tpose_points(self, pose_pts, pose_dirs, batch):
         """
@@ -88,30 +138,38 @@ class Network(GradModule):
             assert batch['ppts'].shape[0] == 1
             # init_pbw = pts_knn_blend_weights_multiassign(pose_pts, batch['ppts'], batch['weights'], batch['parts'])  # (B, N, P, 24)
 
-            # 使用 skinning_weights_network 预测蒙皮权重，只需要将网络输出的体积表示再做wrap的结果，替代 batch['part_pbw'][0] 即可
-            # 并在此处将预测权重与 数据集中计算出的值 添加一个蒙皮权重 Loss  (ActorNeRF)
-
-            init_pbw = pts_knn_blend_weights_multiassign_batch(pose_pts, batch['part_pts'][0], batch['part_pbw'][0], batch['lengths2'][0])  # (B, N, P, 24)
-            pred_pbw, pnorm = init_pbw[..., :24], init_pbw[..., 24]
+            # 采样点距离分块smpl表面的距离
+            # init_pbw = pts_knn_blend_weights_multiassign_batch(pose_pts, batch['part_pts'][0], batch['part_pbw'][0], batch['lengths2'][0])  # (B, N, P, 24)
+            # pred_pbw, pnorm = init_pbw[..., :24], init_pbw[..., 24]
+            pnorm = pts_knn_dists_multiassign_batch(pose_pts, batch['part_pts'][0], None, batch['lengths2'][0])
             pflag = pnorm < cfg.smpl_thresh  # (B, N, P)
 
-        pose_pts_part_extend = pose_pts[:, :, None, :].expand(B, N, NUM_PARTS, 3).reshape(B, N*NUM_PARTS, 3)
-        pose_dirs_part_extend = pose_dirs[:, :, None, :].expand(B, N, NUM_PARTS, 3).reshape(B, N*NUM_PARTS, 3)
-        pred_pbw = pred_pbw.reshape(B, N*NUM_PARTS, 24).permute(0, 2, 1)
+            # 采样点最近邻smpl顶点真值蒙皮权重
+            pbw = pts_knn_blend_weights(pose_pts, batch['ppts'], batch['weights'])
+            pbw = pbw[0][...,:-1]
+
         pflag = pflag.reshape(B, N*NUM_PARTS)
 
+        # 使用 skinning_weights_network 预测的蒙皮权重
+        wraped_pts, wraped_dir, mbw = self.sample_mweights(pose_pts,pose_dirs,batch)
+        # 并在此处将预测权重mbw与 真值pbw 添加一个蒙皮权重 Loss  (ActorNeRF)
+        resd_bw = mbw - pbw
+
         # transform points from i to i_0
-        A_bw, R_inv = get_inverse_blend_params(pred_pbw, batch['A'])
-        big_A_bw = get_blend_params(pred_pbw, batch['big_A'])
+        # A_bw, R_inv = get_inverse_blend_params(pred_pbw, batch['A'])
+        # big_A_bw = get_blend_params(pred_pbw, batch['big_A'])
 
-        init_tpose = pose_points_to_tpose_points(pose_pts_part_extend, A_bw=A_bw, R_inv=R_inv)  # (B, N*P, 3)
-        init_bigpose = tpose_points_to_pose_points(init_tpose, A_bw=big_A_bw)  # (B, N*P, 3)
+        # init_tpose = pose_points_to_tpose_points(pose_pts_part_extend, A_bw=A_bw, R_inv=R_inv)  # (B, N*P, 3)
+        # init_bigpose = tpose_points_to_pose_points(init_tpose, A_bw=big_A_bw)  # (B, N*P, 3)
 
-        if cfg.tpose_viewdir and pose_dirs is not None:
-            init_tdirs = pose_dirs_to_tpose_dirs(pose_dirs_part_extend, A_bw=A_bw, R_inv=R_inv)
-            tpose_dirs = tpose_dirs_to_pose_dirs(init_tdirs, A_bw=big_A_bw).reshape(B, N, NUM_PARTS, 3)
-        else:
-            tpose_dirs = None
+        # if cfg.tpose_viewdir and pose_dirs is not None:
+        #     init_tdirs = pose_dirs_to_tpose_dirs(pose_dirs_part_extend, A_bw=A_bw, R_inv=R_inv)
+        #     tpose_dirs = tpose_dirs_to_pose_dirs(init_tdirs, A_bw=big_A_bw).reshape(B, N, NUM_PARTS, 3)
+        # else:
+        #     tpose_dirs = None
+
+        init_bigpose = wraped_pts[:,:,None,:].expand(B,N,NUM_PARTS,3).reshape(B,N*NUM_PARTS,3) 
+        tpose_dirs = wraped_dir[:,:,None,:].expand(B,N,NUM_PARTS,3)
 
         assert cfg.part_deform == False
 
@@ -126,7 +184,7 @@ class Network(GradModule):
 
         # print(type(tmp))
         # save_point_cloud(tmp, "debug/tpose_pts_{}.ply".format(get_time()))
-        return tpose, bigpose, tpose_dirs, resd, pflag, init_bigpose, pnorm
+        return tpose, bigpose, tpose_dirs, resd, pflag, init_bigpose, pnorm, resd_bw
 
     def resd(self, tpts: torch.Tensor, batch):
         B, N, D = tpts.shape
@@ -150,7 +208,17 @@ class Network(GradModule):
             pose_dirs = pose_dirs[0].gather(dim=0, index=pind)[None]
 
         # transform points from the pose space to the tpose space
-        tpose, bigpose, tpose_dirs, resd, tpose_part_flag, tpts, part_dist = self.pose_points_to_tpose_points(pose_pts, pose_dirs, batch)
+        tpose, bigpose, tpose_dirs, resd, tpose_part_flag, tpts, part_dist, resd_bw = self.pose_points_to_tpose_points(pose_pts, pose_dirs, batch)
+        
+        # 渲染canonical space：即不对光线wrap
+        if cfg.render_canonical:
+            assert self.eval
+            B, N, _ = pose_pts.shape
+            NUM_PARTS = 5
+            tpose = pose_pts[:,:,None,:].expand(B,N,NUM_PARTS,3)
+            bigpose = pose_pts[:,:,None,:].expand(B,N,NUM_PARTS,3)
+            tpose_dirs = pose_dirs[:,:,None,:].expand(B,N,NUM_PARTS,3)
+
         tpose = tpose[0]
         bigpose = bigpose[0]
         tpose_part_flag = tpose_part_flag[0]
@@ -173,7 +241,7 @@ class Network(GradModule):
 
         if self.training:
             tocc = ret['tocc'].view(B, -1, 1)  # tpose occ, correpond with tpts (before deform)
-            ret.update({'resd': resd, 'tpts': tpts, 'tocc': tocc})
+            ret.update({'resd': resd, 'tpts': tpts, 'tocc': tocc, 'resd_bw': resd_bw})
         else:
             del ret['tocc']
         return ret

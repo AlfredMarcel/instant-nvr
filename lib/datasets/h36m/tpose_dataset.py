@@ -8,6 +8,8 @@ import json
 import os
 import imageio
 import cv2
+import pickle
+import torch
 from lib.config import cfg
 from lib.utils.if_nerf import if_nerf_data_utils as if_nerf_dutils
 from lib.utils.img_utils import get_schp_palette
@@ -17,6 +19,7 @@ from lib.utils.base_utils import project
 from lib.utils.blend_utils import NUM_PARTS, part_bw_map, partnames
 from lib.utils.render_utils import save_point_cloud
 from lib.utils.base_utils import get_time
+from lib.utils.body_utils import approx_gaussian_bone_volumes, get_canonical_global_tfms
 
 class Dataset(data.Dataset):
     def __init__(self, data_root, human, ann_file, split):
@@ -30,6 +33,14 @@ class Dataset(data.Dataset):
         self.data_root = data_root
         self.human = human
         self.split = split
+
+        #==============================================================
+        # 高斯近似的 T-pose 权重先验
+        self.canonical_joints, self.canonical_bbox = self.load_canonical_joints(human)
+        # 
+        self.motion_weights_priors = approx_gaussian_bone_volumes(self.canonical_joints,self.canonical_bbox['min_xyz'],self.canonical_bbox['max_xyz'],
+                                                                   grid_size=cfg.mweight_volume.volume_size).astype('float32')
+        #==============================================================
 
         annots = np.load(ann_file, allow_pickle=True).item()
         self.cams = annots['cams']
@@ -93,6 +104,27 @@ class Dataset(data.Dataset):
             faces, weights, joints, parents, parts = self.load_smpl()
             self.meta_smpl = {'faces': faces, 'weights': weights, 'joints': joints, 'parents': parents, 'parts': parts}
 
+
+    def load_canonical_joints(self, human):
+        tab = {"my_377":"canonical_joints_377.pkl","my_386":"canonical_joints_386.pkl","my_394":"canonical_joints_394.pkl","my_387":"canonical_joints_387.pkl","my_392":"canonical_joints_392.pkl","my_393":"canonical_joints_393.pkl"}
+        path = os.path.join("canonical_joints/", tab[human])
+        with open(path, 'rb') as f:
+            cl_joint_data = pickle.load(f)
+            canonical_joints = cl_joint_data['joints_{}'.format(human[-3:])]
+            canonical_bbox = self.skeleton_to_bbox(canonical_joints)
+        return canonical_joints, canonical_bbox
+
+    @staticmethod
+    def skeleton_to_bbox(skeleton):
+        min_xyz = np.min(skeleton, axis=0) - cfg.bbox_overlap
+        min_xyz.astype(np.float32)
+        max_xyz = np.max(skeleton, axis=0) + cfg.bbox_overlap
+        max_xyz.astype(np.float32)
+
+        return {
+            'min_xyz': min_xyz,
+            'max_xyz': max_xyz
+        }
 
     def load_smpl(self):
         smpl_meta_root = cfg.smpl_meta
@@ -292,7 +324,6 @@ class Dataset(data.Dataset):
             big_poses, joints, parents)
         pbw = np.load(os.path.join(self.lbs_root, 'bweights/{}.npy'.format(i)))
         pbw = pbw.astype(np.float32)
-
         return wxyz, pxyz, A, big_A, pbw, Rh, Th
 
     def __getitem__(self, index):
@@ -604,6 +635,12 @@ class Dataset(data.Dataset):
                 'lengths2': lengths2,
                 'bounds': bounds,
             })
+
+        ret.update({'motion_weights_priors': self.motion_weights_priors.copy()})
+        ret.update({'cnl_bbox_min_xyz': self.canonical_bbox['min_xyz'],
+                    'cnl_bbox_max_xyz': self.canonical_bbox['max_xyz'],
+                    'cnl_bbox_scale_xyz': (2.0 / (self.canonical_bbox['max_xyz'] - self.canonical_bbox['min_xyz'])).astype(np.float32),
+                    })
 
         return ret
 

@@ -13,6 +13,8 @@ __pycache__/
 exps/
 debug/
 *.png
+*.pkl
+*.tar
 exps
 *.ply
 *.obj
@@ -21,3 +23,7 @@ exps
 exps*
 data/
 metrics/
+priors/
+vis_buffer/
+canonical_joints/
+

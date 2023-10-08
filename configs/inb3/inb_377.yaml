@@ -10,6 +10,7 @@ prune_dataset_module: "lib.datasets.h36m.tpose_dataset"
 
 network_module: "lib.networks.bw_deform.inb_part_network_multiassign"
 renderer_module: "lib.networks.renderer.inb_renderer"
+skinning_network_module: "lib.networks.bw_deform.deconv_vol_decoder"
 
 renderer_vis_module: "lib.networks.renderer.inb_renderer"
 trainer_module: "lib.train.trainers.inb_trainer"
@@ -23,6 +24,12 @@ network:
   color:
     d_hidden: 64
     n_layers: 2
+
+mweight_volume:
+  embedding_size: 256
+  volume_size: 32
+  dst_voxel_size: 0.0625
+  total_bones: 24
 
 viewdir_embedder:
   module: "lib.networks.embedders.freq_embedder"
@@ -227,7 +234,7 @@ train:
   lr: 5e-4
   eps: 1e-15
   weight_decay: 0
-  epoch: 6
+  epoch: 100
   scheduler:
     type: "exponential"
     gamma: 0.1
@@ -259,11 +266,11 @@ training_stages:
     _start: 0
   - ratio: 0.5
     sample_focus: head
-    _start: 2
+    _start: 30
   - ratio: 0.5
     sample_focus: head
     reg_dist_weight: 1.0
-    _start: 4
+    _start: 60
 
 smpl: smpl
 lbs: smpl_lbs
@@ -320,15 +327,16 @@ t_features_dim : 64
 # prune_using_geo : True
 
 # 调整损失权重
-img_loss_weight: 1.0
+img_loss_weight: 5.0
 lpips_loss_weight: 20.0
-resd_loss_weight: 0.1
-reg_dist_weight: 0.1
+resd_loss_weight: 0.3
+reg_dist_weight: 0.3
 pair_loss_weight: 10.0
-time_smooth_reg_weight: 400
+skinning_loss_weight: 100
+time_smooth_reg_weight: 200
 
 # 合并feature方式
 # sum = True, sum_over_feature = False  才起作用
 
-multipy_over_features : True
+multipy_over_features : False
 multipy_over_levels: False

@@ -7,6 +7,10 @@ def make_network(cfg):
     network = importlib.import_module(module).Network()
     return network
 
+def make_skinning_network(cfg):
+    module = cfg.skinning_network_module
+    network = importlib.import_module(module).Network(cfg.mweight_volume.embedding_size,cfg.mweight_volume.volume_size,cfg.mweight_volume.total_bones)
+    return network
 
 def make_part_network(gcfg, partname, pid):
     from lib.networks.bw_deform.part_base_network import Network

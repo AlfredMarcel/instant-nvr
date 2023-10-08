@@ -10,7 +10,7 @@
 export GPUS=$1
 en=$2
 
-for name in 386 387 392 393 394
+for name in 377
 do
     python run.py --type bullet --cfg_file configs/bullet_show/inb_${name}.yaml exp_name ${en}_${name} gpus ${GPUS},
 done
